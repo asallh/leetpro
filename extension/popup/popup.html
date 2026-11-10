@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeetPro</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>LeetPro</h1>
+    </header>
+
+    <div id="loading" class="state">
+      <p>Loading...</p>
+    </div>
+
+    <div id="not-auth" class="state hidden">
+      <p>Sign in to start tracking</p>
+      <a id="sign-in-link" href="http://localhost:3000/sign-in" target="_blank" class="btn primary">
+        Sign in to LeetPro
+      </a>
+    </div>
+
+    <div id="problem-detected" class="state hidden">
+      <div class="problem-info">
+        <span id="problem-difficulty" class="badge"></span>
+        <h2 id="problem-title"></h2>
+        <div id="problem-topics" class="topics"></div>
+      </div>
+
+      <form id="attempt-form">
+        <div class="field">
+          <label>Result</label>
+          <select id="result">
+            <option value="solved_independently">Solved independently</option>
+            <option value="solved_with_hint">Solved with hint</option>
+            <option value="needed_solution">Needed solution</option>
+            <option value="could_not_solve">Could not solve</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Confidence</label>
+          <div class="confidence-buttons">
+            <button type="button" data-value="1" class="conf-btn">1</button>
+            <button type="button" data-value="2" class="conf-btn">2</button>
+            <button type="button" data-value="3" class="conf-btn selected">3</button>
+            <button type="button" data-value="4" class="conf-btn">4</button>
+            <button type="button" data-value="5" class="conf-btn">5</button>
+          </div>
+          <small id="confidence-desc">Solved with some difficulty</small>
+        </div>
+
+        <div class="row">
+          <div class="field half">
+            <label>Time (min)</label>
+            <input type="number" id="time-minutes" min="1" placeholder="25">
+          </div>
+          <div class="field half">
+            <label>Help used</label>
+            <select id="help-used">
+              <option value="none">None</option>
+              <option value="hint">Used hint</option>
+              <option value="solution">Looked at solution</option>
+              <option value="discussion">Read discussion</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="notes" rows="2" placeholder="Key insight, approach..."></textarea>
+        </div>
+
+        <button type="submit" class="btn primary" id="submit-btn">Log attempt</button>
+      </form>
+    </div>
+
+    <div id="no-problem" class="state hidden">
+      <div class="mini-stats">
+        <div class="stat">
+          <span class="stat-value" id="stat-solved">—</span>
+          <span class="stat-label">Solved</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-review">—</span>
+          <span class="stat-label">Due review</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="stat-streak">—</span>
+          <span class="stat-label">Streak</span>
+        </div>
+      </div>
+      <p class="hint">Visit a LeetCode or NeetCode problem to start tracking</p>
+      <a id="dashboard-link" href="http://localhost:3000/dashboard" target="_blank" class="btn outline">
+        Open dashboard
+      </a>
+    </div>
+
+    <div id="success" class="state hidden">
+      <div class="success-icon">✓</div>
+      <p>Attempt logged!</p>
+      <p class="hint" id="next-review">Next review scheduled</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

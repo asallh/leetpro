@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// BetterAuth tables
+// ============================================================
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @map("email_verified")
+  image         String?
+  createdAt     DateTime  @map("created_at")
+  updatedAt     DateTime  @map("updated_at")
+
+  sessions     Session[]
+  accounts     Account[]
+  attempts     Attempt[]
+  userProblems UserProblem[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @map("created_at")
+  updatedAt DateTime @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @map("created_at")
+  updatedAt             DateTime  @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime? @map("created_at")
+  updatedAt  DateTime? @map("updated_at")
+
+  @@map("verification")
+}
+
+// ============================================================
+// Application tables
+// ============================================================
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum AttemptResult {
+  solved_independently
+  solved_with_hint
+  needed_solution
+  could_not_solve
+}
+
+enum HelpUsed {
+  none
+  hint
+  solution
+  discussion
+}
+
+enum ProblemStatus {
+  new_problem
+  learning
+  review
+  mastered
+}
+
+model Problem {
+  id         String     @id @default(cuid())
+  leetcodeId Int?       @unique @map("leetcode_id")
+  neetcodeId String?    @map("neetcode_id")
+  title      String
+  slug       String     @unique
+  difficulty Difficulty
+  url        String
+  platform   String     @default("leetcode")
+  topics     String[]
+  lists      String[]
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  attempts     Attempt[]
+  userProblems UserProblem[]
+
+  @@map("problem")
+}
+
+model Attempt {
+  id            String        @id @default(cuid())
+  userId        String        @map("user_id")
+  problemId     String        @map("problem_id")
+  date          DateTime      @default(now())
+  timeMinutes   Int?          @map("time_minutes")
+  result        AttemptResult
+  confidence    Int
+  helpUsed      HelpUsed      @default(none) @map("help_used")
+  approach      String?
+  notes         String?
+  patterns      String[]
+  attemptNumber Int           @map("attempt_number")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id])
+
+  @@map("attempt")
+}
+
+model UserProblem {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  problemId       String        @map("problem_id")
+  status          ProblemStatus @default(new_problem)
+  totalAttempts   Int           @default(0) @map("total_attempts")
+  lastAttemptDate DateTime?     @map("last_attempt_date")
+  bestConfidence  Int?          @map("best_confidence")
+  nextReviewDate  DateTime?     @map("next_review_date")
+  reviewInterval  Int           @default(1) @map("review_interval")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id])
+
+  @@unique([userId, problemId])
+  @@map("user_problem")
+}
