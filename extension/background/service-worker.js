@@ -94,16 +94,17 @@ function isSupportedSite(url) {
 
 function updateIcon(tabId, url) {
   const active = isSupportedSite(url);
-  const suffix = active ? "" : "-grey";
-  chrome.action.setIcon({
-    tabId,
-    path: {
-      16: `icons/icon16${suffix}.png`,
-      32: `icons/icon32${suffix}.png`,
-      48: `icons/icon48${suffix}.png`,
-      128: `icons/icon128${suffix}.png`,
-    },
-  });
+  if (active) {
+    chrome.action.setIcon({ tabId, path: {
+      16: "icons/icon16.png", 32: "icons/icon32.png",
+      48: "icons/icon48.png", 128: "icons/icon128.png",
+    }}).catch(() => {});
+  } else {
+    chrome.action.setIcon({ tabId, path: {
+      16: "icons/icon16-grey.png", 32: "icons/icon32-grey.png",
+      48: "icons/icon48-grey.png", 128: "icons/icon128-grey.png",
+    }}).catch(() => {});
+  }
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -112,7 +113,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  const tab = await chrome.tabs.get(tabId);
-  updateIcon(tabId, tab.url);
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId).then((tab) => {
+    updateIcon(tabId, tab.url);
+  }).catch(() => {});
 });
