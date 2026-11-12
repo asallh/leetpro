@@ -1,20 +1,22 @@
 import { getRequiredSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { DifficultyBadge } from "@/components/difficulty-badge";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
+import { RecallMeter } from "@/components/recall-meter";
 import { buttonVariants } from "@/components/ui/button";
+import { estimateRecall } from "@/lib/recall";
 import { cn } from "cn";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReviewAttemptDialog } from "./review-attempt-dialog";
 import { formatDistanceToNow } from "date-fns";
 
 export default async function ReviewPage() {
   const session = await getRequiredSession();
+  const now = new Date();
 
   const dueProblems = await prisma.userProblem.findMany({
     where: {
       userId: session.user.id,
-      nextReviewDate: { lte: new Date() },
+      nextReviewDate: { lte: now },
       status: { not: "mastered" },
     },
     include: { problem: true },
@@ -23,74 +25,78 @@ export default async function ReviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Review Queue</h1>
-        <p className="text-muted-foreground">
-          {dueProblems.length} problem{dueProblems.length !== 1 ? "s" : ""} due
-          for review
-        </p>
-      </div>
+      <PageHeader
+        title="Review queue"
+        description={
+          dueProblems.length > 0 ? (
+            <>
+              <span className="num text-due-text">{dueProblems.length}</span> problem
+              {dueProblems.length !== 1 ? "s" : ""} due, most overdue first
+            </>
+          ) : (
+            "Nothing due right now"
+          )
+        }
+      />
 
       {dueProblems.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium">All caught up!</p>
-          <p className="text-sm mt-1">
-            No problems due for review right now. Check back later.
+        <div className="rounded-lg border bg-card px-4 py-10 text-muted-foreground">
+          <p className="font-medium text-foreground">All caught up</p>
+          <p className="mt-1 text-sm">
+            Problems come back here when their estimated recall drops below 70%. The
+            dashboard forecast shows when the next ones are due.
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ol className="divide-y rounded-lg border bg-card">
           {dueProblems.map((up) => (
-            <Card key={up.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <DifficultyBadge difficulty={up.problem.difficulty} />
-                  <span className="text-xs text-muted-foreground">
-                    Overdue{" "}
-                    {up.nextReviewDate
-                      ? formatDistanceToNow(new Date(up.nextReviewDate))
-                      : ""}
-                  </span>
-                </div>
-                <CardTitle className="text-base mt-2">
+            <li
+              key={up.id}
+              className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3"
+            >
+              <DifficultyBadge difficulty={up.problem.difficulty} />
+              <div className="min-w-0 flex-1 basis-56">
+                <p className="font-medium">
+                  <span className="mr-1 font-mono text-due-text">›</span>
                   {up.problem.leetcodeId && (
-                    <span className="text-muted-foreground">
-                      {up.problem.leetcodeId}.{" "}
+                    <span className="num mr-1.5 text-muted-foreground">
+                      {up.problem.leetcodeId}.
                     </span>
                   )}
                   {up.problem.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-1 flex-wrap">
-                  {up.problem.topics.slice(0, 4).map((t) => (
-                    <Badge key={t} variant="outline" className="text-xs">
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{up.totalAttempts} attempt{up.totalAttempts !== 1 ? "s" : ""}</span>
-                  <span>Best: {up.bestConfidence}/5</span>
-                </div>
-                <div className="flex gap-2">
-                  <a
-                    href={up.problem.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex-1")}
-                  >
-                    Open problem
-                  </a>
-                  <ReviewAttemptDialog
-                    problemId={up.problemId}
-                    problemTitle={up.problem.title}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {up.problem.topics.slice(0, 4).join(" · ")}
+                  {up.problem.topics.length > 0 && " · "}
+                  <span className="num">
+                    {up.totalAttempts} attempt{up.totalAttempts !== 1 ? "s" : ""} · best{" "}
+                    {up.bestConfidence ?? "—"}/5
+                  </span>
+                </p>
+              </div>
+              <div className="flex flex-col items-start gap-0.5">
+                <RecallMeter recall={estimateRecall(up.lastAttemptDate, up.reviewInterval, now)} />
+                <span className="num text-[11px] text-muted-foreground">
+                  due{" "}
+                  {up.nextReviewDate
+                    ? formatDistanceToNow(new Date(up.nextReviewDate), { addSuffix: true })
+                    : "now"}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <a
+                  href={up.problem.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                >
+                  Open problem
+                </a>
+                <ReviewAttemptDialog problemId={up.problemId} problemTitle={up.problem.title} />
+              </div>
+            </li>
           ))}
-        </div>
+        </ol>
       )}
     </div>
   );

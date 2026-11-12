@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LeetPro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div id="app">
     <header>
-      <h1>LeetPro</h1>
+      <h1><span class="path">~/</span>Leet<span class="pro">Pro</span></h1>
     </header>
 
     <div id="loading" class="state">
@@ -100,8 +102,8 @@
     </div>
 
     <div id="success" class="state hidden">
-      <div class="success-icon">✓</div>
-      <p>Attempt logged!</p>
+      <div class="success-icon">✓ logged</div>
+      <p>Attempt saved to your ledger</p>
       <p class="hint" id="next-review">Next review scheduled</p>
     </div>
   </div>

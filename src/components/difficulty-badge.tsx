@@ -1,16 +1,33 @@
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const colors = {
-  easy: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  hard: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+type Difficulty = "easy" | "medium" | "hard";
+
+const glyph: Record<Difficulty, string> = { easy: "E", medium: "M", hard: "H" };
+
+const styles: Record<Difficulty, string> = {
+  easy: "border-border text-foreground",
+  medium: "border-foreground text-foreground",
+  hard: "border-foreground bg-foreground text-background",
 };
 
-export function DifficultyBadge({ difficulty }: { difficulty: "easy" | "medium" | "hard" }) {
+export function DifficultyBadge({
+  difficulty,
+  className,
+}: {
+  difficulty: Difficulty;
+  className?: string;
+}) {
   return (
-    <Badge variant="secondary" className={cn("capitalize", colors[difficulty])}>
-      {difficulty}
-    </Badge>
+    <span
+      title={difficulty[0].toUpperCase() + difficulty.slice(1)}
+      aria-label={difficulty}
+      className={cn(
+        "inline-grid size-[22px] shrink-0 place-items-center rounded-sm border font-mono text-[11px] font-bold",
+        styles[difficulty],
+        className
+      )}
+    >
+      {glyph[difficulty]}
+    </span>
   );
 }

@@ -42,8 +42,8 @@ export default function SignUpPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
+        <CardHeader>
+          <CardTitle className="font-heading text-2xl font-bold tracking-[-0.03em]">Create an account</CardTitle>
           <CardDescription>Start tracking your LeetCode practice</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

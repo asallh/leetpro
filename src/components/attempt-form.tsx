@@ -97,9 +97,9 @@ export function AttemptForm({ problemId, onSuccess }: AttemptFormProps) {
               type="button"
               onClick={() => setConfidence(n)}
               className={cn(
-                "h-10 w-10 rounded-md border text-sm font-medium transition-colors",
+                "h-10 w-10 rounded-md border font-mono text-sm font-medium transition-colors",
                 confidence === n
-                  ? "bg-primary text-primary-foreground"
+                  ? "border-foreground bg-foreground text-background"
                   : "hover:bg-accent"
               )}
             >

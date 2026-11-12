@@ -26,7 +26,7 @@ export function ReviewAttemptDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" className="flex-1" />}>
+      <DialogTrigger render={<Button size="sm" />}>
         Log attempt
       </DialogTrigger>
       <DialogContent>

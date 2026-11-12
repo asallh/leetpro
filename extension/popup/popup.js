@@ -100,8 +100,11 @@ async function init() {
 
 function showProblemUI(problem) {
   const diffBadge = document.getElementById("problem-difficulty");
-  diffBadge.textContent = problem.difficulty;
-  diffBadge.className = `badge ${problem.difficulty}`;
+  const difficulty = String(problem.difficulty || "").toLowerCase();
+  diffBadge.textContent = { easy: "E", medium: "M", hard: "H" }[difficulty] || "?";
+  diffBadge.title = difficulty;
+  diffBadge.setAttribute("aria-label", difficulty);
+  diffBadge.className = `badge ${difficulty}`;
 
   document.getElementById("problem-title").textContent =
     (problem.leetcodeId ? `${problem.leetcodeId}. ` : "") + problem.title;

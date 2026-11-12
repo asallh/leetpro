@@ -4,6 +4,7 @@ import { BLIND_75, GRIND_75, NEETCODE_150_IDS } from "@/lib/data/problem-lists";
 import { DifficultyBadge } from "@/components/difficulty-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { PageHeader } from "@/components/page-header";
 
 interface ListSection {
   name: string;
@@ -50,12 +51,10 @@ export default async function ListsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Curated Lists</h1>
-        <p className="text-muted-foreground">
-          Track your progress on popular problem lists
-        </p>
-      </div>
+      <PageHeader
+        title="Curated lists"
+        description="Progress on the lists most interview prep follows. Solved means best confidence 3 or higher."
+      />
 
       <div className="grid gap-6">
         {lists.map((list) => {
@@ -81,15 +80,15 @@ export default async function ListsPage() {
             <Card key={list.name}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>{list.name}</CardTitle>
-                  <span className="text-sm text-muted-foreground">
+                  <CardTitle className="text-base font-bold tracking-[-0.02em]">{list.name}</CardTitle>
+                  <span className="num text-sm text-muted-foreground">
                     {solved}/{list.ids.length} solved ({pct}%)
                   </span>
                 </div>
                 <Progress value={pct} className="mt-2" />
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-muted-foreground mb-4">
+                <div className="num text-xs text-muted-foreground mb-4">
                   {tracked} tracked &middot; {solved} solved &middot;{" "}
                   {list.ids.length - tracked} not started
                 </div>
@@ -100,7 +99,7 @@ export default async function ListsPage() {
                       <div key={cat}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-medium">{cat}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="num text-xs text-muted-foreground">
                             {stats.solved}/{stats.total}
                           </span>
                         </div>
@@ -130,11 +129,19 @@ export default async function ListsPage() {
                         >
                           <span
                             className={
-                              solvedIds.has(p.leetcodeId)
-                                ? "text-green-600"
+                              "w-4 font-mono " +
+                              (solvedIds.has(p.leetcodeId)
+                                ? "text-success"
                                 : trackedIds.has(p.leetcodeId)
-                                ? "text-yellow-600"
-                                : "text-muted-foreground"
+                                ? "text-foreground"
+                                : "text-muted-foreground")
+                            }
+                            aria-label={
+                              solvedIds.has(p.leetcodeId)
+                                ? "Solved"
+                                : trackedIds.has(p.leetcodeId)
+                                ? "Tracked"
+                                : "Not started"
                             }
                           >
                             {solvedIds.has(p.leetcodeId)
@@ -143,11 +150,11 @@ export default async function ListsPage() {
                               ? "○"
                               : "·"}
                           </span>
-                          <span className="text-muted-foreground font-mono w-8">
+                          <span className="num w-10 text-muted-foreground">
                             {p.leetcodeId}
                           </span>
-                          <span>{p.title}</span>
                           <DifficultyBadge difficulty={p.difficulty} />
+                          <span>{p.title}</span>
                         </div>
                       ))}
                     </div>

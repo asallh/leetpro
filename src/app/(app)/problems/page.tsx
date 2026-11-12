@@ -2,6 +2,9 @@ import { getRequiredSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { DifficultyBadge } from "@/components/difficulty-badge";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader, StatusLabel } from "@/components/page-header";
+import { RecallMeter } from "@/components/recall-meter";
+import { estimateRecall, isFading } from "@/lib/recall";
 import {
   Table,
   TableBody,
@@ -10,21 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDistanceToNow } from "date-fns";
-
-const statusLabels: Record<string, string> = {
-  new_problem: "New",
-  learning: "Learning",
-  review: "Review",
-  mastered: "Mastered",
-};
-
-const statusColors: Record<string, string> = {
-  new_problem: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  learning: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  review: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  mastered: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-};
+import { format, formatDistanceToNow, isToday } from "date-fns";
 
 export default async function ProblemsPage() {
   const session = await getRequiredSession();
@@ -37,39 +26,42 @@ export default async function ProblemsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Problems</h1>
-        <p className="text-muted-foreground">
-          All problems you&apos;ve tracked ({userProblems.length})
-        </p>
-      </div>
+      <PageHeader
+        title="Problems"
+        description={<>All problems you&apos;ve tracked (<span className="num">{userProblems.length}</span>)</>}
+      />
 
       {userProblems.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium">No problems tracked yet</p>
+        <div className="rounded-lg border bg-card px-4 py-10 text-muted-foreground">
+          <p className="font-medium text-foreground">No problems tracked yet</p>
           <p className="text-sm mt-1">
             Install the Chrome extension and visit a LeetCode or NeetCode
             problem to start tracking.
           </p>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[60px]">#</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead className="w-[100px]">Difficulty</TableHead>
-                <TableHead className="w-[100px]">Status</TableHead>
-                <TableHead className="w-[80px]">Best</TableHead>
-                <TableHead className="w-[80px]">Attempts</TableHead>
-                <TableHead className="w-[120px]">Last attempt</TableHead>
+                <TableHead className="w-14">#</TableHead>
+                <TableHead>Problem</TableHead>
+                <TableHead className="w-12">Diff</TableHead>
+                <TableHead className="w-24">Status</TableHead>
+                <TableHead className="w-32">Recall</TableHead>
+                <TableHead className="w-24">Next review</TableHead>
+                <TableHead className="w-14 text-right">Best</TableHead>
+                <TableHead className="w-14 text-right">Tries</TableHead>
+                <TableHead className="w-32">Last attempt</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {userProblems.map((up) => (
+              {userProblems.map((up) => {
+                const recall = estimateRecall(up.lastAttemptDate, up.reviewInterval);
+                const fading = up.status !== "mastered" && isFading(recall);
+                return (
                 <TableRow key={up.id}>
-                  <TableCell className="font-mono text-muted-foreground">
+                  <TableCell className="num text-muted-foreground">
                     {up.problem.leetcodeId ?? "—"}
                   </TableCell>
                   <TableCell>
@@ -79,6 +71,7 @@ export default async function ProblemsPage() {
                       rel="noopener noreferrer"
                       className="font-medium hover:underline"
                     >
+                      {fading && <span className="mr-1 font-mono text-due-text">›</span>}
                       {up.problem.title}
                     </a>
                     {up.problem.topics.length > 0 && (
@@ -87,7 +80,7 @@ export default async function ProblemsPage() {
                           <Badge
                             key={t}
                             variant="outline"
-                            className="text-[10px] px-1.5 py-0"
+                            className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
                           >
                             {t}
                           </Badge>
@@ -95,7 +88,7 @@ export default async function ProblemsPage() {
                         {up.problem.topics.length > 3 && (
                           <Badge
                             variant="outline"
-                            className="text-[10px] px-1.5 py-0"
+                            className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
                           >
                             +{up.problem.topics.length - 3}
                           </Badge>
@@ -107,20 +100,27 @@ export default async function ProblemsPage() {
                     <DifficultyBadge difficulty={up.problem.difficulty} />
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={statusColors[up.status]}
-                    >
-                      {statusLabels[up.status]}
-                    </Badge>
+                    <StatusLabel status={up.status} />
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell>
+                    <RecallMeter recall={up.status === "mastered" ? null : recall} />
+                  </TableCell>
+                  <TableCell className={fading ? "num text-xs font-bold text-due-text" : "num text-xs text-muted-foreground"}>
+                    {up.status === "mastered" || !up.nextReviewDate
+                      ? "—"
+                      : fading
+                      ? "due"
+                      : isToday(up.nextReviewDate)
+                      ? "today"
+                      : format(up.nextReviewDate, "MMM d")}
+                  </TableCell>
+                  <TableCell className="num text-right">
                     {up.bestConfidence ? `${up.bestConfidence}/5` : "—"}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="num text-right">
                     {up.totalAttempts}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="num text-xs text-muted-foreground">
                     {up.lastAttemptDate
                       ? formatDistanceToNow(new Date(up.lastAttemptDate), {
                           addSuffix: true,
@@ -128,7 +128,8 @@ export default async function ProblemsPage() {
                       : "—"}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>

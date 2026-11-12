@@ -40,8 +40,8 @@ export default function SignInPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+        <CardHeader>
+          <CardTitle className="font-heading text-2xl font-bold tracking-[-0.03em]">Welcome back</CardTitle>
           <CardDescription>Sign in to your LeetPro account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
