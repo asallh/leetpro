@@ -9,7 +9,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  if (!sessionCookie) {
+  const isAuthPage = ["/sign-in", "/sign-up"].includes(pathname);
+
+  if (!sessionCookie && !isAuthPage) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 

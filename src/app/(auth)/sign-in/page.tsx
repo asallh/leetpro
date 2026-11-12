@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 
 export default function SignInPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,10 +24,13 @@ export default function SignInPage() {
     const { error } = await signIn.email({
       email,
       password,
-      callbackURL: "/dashboard",
     });
-    if (error) setError(error.message ?? "Sign in failed");
-    setLoading(false);
+    if (error) {
+      setError(error.message ?? "Sign in failed");
+      setLoading(false);
+      return;
+    }
+    router.push("/dashboard");
   }
 
   async function handleSocialSignIn(provider: "google" | "github" | "discord") {
