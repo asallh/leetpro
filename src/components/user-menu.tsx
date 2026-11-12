@@ -32,10 +32,12 @@ export function UserMenu() {
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-56">
         <div className="px-2 py-1.5 text-sm">
-          <p className="font-medium">{session.user.name}</p>
-          <p className="text-muted-foreground text-xs">{session.user.email}</p>
+          <p className="truncate font-medium">{session.user.name}</p>
+          <p className="truncate text-muted-foreground text-xs">
+            {session.user.email}
+          </p>
         </div>
         <DropdownMenuItem
           onClick={() => signOut({ fetchOptions: { onSuccess: () => { router.push("/sign-in"); } } })}

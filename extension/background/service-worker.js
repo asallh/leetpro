@@ -45,6 +45,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "GET_PROBLEM_STATS") {
+    apiRequest(`/api/problems/stats?slug=${encodeURIComponent(message.slug)}`)
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   if (message.type === "CHECK_AUTH") {
     apiRequest("/api/auth/get-session")
       .then((data) => sendResponse({ success: true, authenticated: !!data }))

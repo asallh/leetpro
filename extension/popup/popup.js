@@ -14,12 +14,33 @@ const confidenceDescriptions = {
   5: "Could do this in my sleep",
 };
 
+const RESULT_LABELS = {
+  solved_independently: "Solved",
+  solved_with_hint: "Hint",
+  needed_solution: "Needed solution",
+  could_not_solve: "Couldn't solve",
+};
+
+const STATUS_LABELS = {
+  new_problem: "New",
+  learning: "Learning",
+  review: "Review",
+  mastered: "Mastered",
+};
+
 let selectedConfidence = 3;
 let currentProblem = null;
 
 function showState(name) {
   Object.values(states).forEach((el) => el.classList.add("hidden"));
   states[name].classList.remove("hidden");
+}
+
+// Extract slug from a leetcode or neetcode URL
+function extractSlug(url) {
+  if (!url) return null;
+  const m = url.match(/(?:leetcode\.com|neetcode\.io)\/problems\/([\w-]+)/);
+  return m ? m[1] : null;
 }
 
 // Confidence buttons
@@ -75,26 +96,54 @@ async function init() {
       return;
     }
 
-    // Check for detected problem
-    const stored = await chrome.storage.local.get("currentProblem");
-    const problem = stored.currentProblem;
+    // Get current tab URL to detect problem
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const slug = extractSlug(tab?.url);
 
-    // Also check current tab URL
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-
-    const isOnProblem =
-      tab?.url?.match(/leetcode\.com\/problems\//) ||
-      tab?.url?.match(/neetcode\.io\/problems\//);
-
-    if (problem && isOnProblem) {
-      currentProblem = problem;
-      showProblemUI(problem);
-    } else {
+    if (!slug) {
       showStatsUI();
+      return;
     }
+
+    // We're on a problem page — get stored problem data for display
+    const stored = await chrome.storage.local.get("currentProblem");
+    const storedProblem = stored.currentProblem;
+
+    // Fetch server-side stats for this slug
+    chrome.runtime.sendMessage({ type: "GET_PROBLEM_STATS", slug }, (res) => {
+      if (res?.success && res.data?.found) {
+        const { problem, stats, recentAttempts, tracked } = res.data;
+        currentProblem = problem;
+
+        // Show problem info from server data or stored data
+        const displayProblem = storedProblem?.slug === slug ? storedProblem : {
+          ...problem,
+          slug,
+          topics: [],
+        };
+        showProblemUI(displayProblem);
+
+        if (tracked && stats) {
+          showProblemStats(stats, recentAttempts);
+        } else {
+          document.getElementById("problem-new").classList.remove("hidden");
+        }
+      } else if (storedProblem?.slug === slug) {
+        // Server doesn't know this problem yet, but content script detected it
+        currentProblem = storedProblem;
+        showProblemUI(storedProblem);
+        document.getElementById("problem-new").classList.remove("hidden");
+      } else {
+        // Fallback: we know the slug from URL but have no data
+        showProblemUI({
+          title: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+          slug,
+          difficulty: "medium",
+          topics: [],
+        });
+        document.getElementById("problem-new").classList.remove("hidden");
+      }
+    });
   });
 }
 
@@ -119,6 +168,48 @@ function showProblemUI(problem) {
   });
 
   showState("problemDetected");
+}
+
+function showProblemStats(stats, recentAttempts) {
+  const el = document.getElementById("problem-stats");
+  el.classList.remove("hidden");
+
+  document.getElementById("ps-attempts").textContent = stats.totalAttempts;
+  document.getElementById("ps-best").textContent =
+    stats.bestConfidence ? `${stats.bestConfidence}/5` : "—";
+
+  const recallEl = document.getElementById("ps-recall");
+  if (stats.recall !== null && stats.recall !== undefined) {
+    const pct = Math.round(stats.recall * 100);
+    recallEl.textContent = `${pct}%`;
+    recallEl.className = `stat-item-value ${pct < 70 ? "due" : "good"}`;
+  } else {
+    recallEl.textContent = "—";
+  }
+
+  const statusEl = document.getElementById("ps-status");
+  statusEl.textContent = STATUS_LABELS[stats.status] || stats.status;
+
+  // Recent attempts
+  const historyEl = document.getElementById("ps-history");
+  if (recentAttempts && recentAttempts.length > 0) {
+    historyEl.innerHTML = "<h3>Recent attempts</h3>";
+    for (const a of recentAttempts) {
+      const d = new Date(a.date);
+      const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+      const row = document.createElement("div");
+      row.className = "history-row";
+      row.innerHTML = `
+        <span class="history-date">${dateStr}</span>
+        <span class="history-result">${RESULT_LABELS[a.result] || a.result}</span>
+        <span class="history-conf">${a.confidence}/5</span>
+        <span class="history-date">${a.timeMinutes ? a.timeMinutes + "m" : ""}</span>
+      `;
+      historyEl.appendChild(row);
+    }
+  } else {
+    historyEl.innerHTML = "";
+  }
 }
 
 function showStatsUI() {
