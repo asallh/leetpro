@@ -120,6 +120,48 @@
     };
   }
 
+  // Watch for accepted submissions and auto-show the feedback overlay
+  watchForAcceptedSubmission(problemData);
+
+  function watchForAcceptedSubmission(problem) {
+    let lastShownUrl = null;
+    const observer = new MutationObserver(() => {
+      // LeetCode renders "Accepted" in a span with data-e2e-locator="submission-result"
+      // or inside an element with class containing "text-green" or "success"
+      const resultEl =
+        document.querySelector('[data-e2e-locator="submission-result"]') ||
+        document.querySelector('[class*="result_"] [class*="success"]') ||
+        document.querySelector('[class*="text-green-s"]');
+
+      if (!resultEl) return;
+      const text = resultEl.textContent?.trim().toLowerCase();
+      if (text !== "accepted") return;
+
+      // Don't re-trigger for the same page
+      if (lastShownUrl === window.location.href) return;
+      lastShownUrl = window.location.href;
+
+      const solutionCode = grabSolutionCode();
+      showFeedbackOverlay(problem, solutionCode);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function grabSolutionCode() {
+    // Monaco editor: try to get code from the editor's view lines
+    const lines = document.querySelectorAll(".view-line");
+    if (lines.length > 0) {
+      return [...lines].map((l) => l.textContent).join("\n");
+    }
+    // Fallback: CodeMirror or textarea
+    const cm = document.querySelector(".CodeMirror");
+    if (cm?.CodeMirror) return cm.CodeMirror.getValue();
+    const textarea = document.querySelector('textarea[name="code"]');
+    if (textarea) return textarea.value;
+    return null;
+  }
+
   function waitForElement(selector, timeout = 5000) {
     return new Promise((resolve) => {
       const el = document.querySelector(selector);

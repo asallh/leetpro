@@ -12,12 +12,12 @@
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/problems/*"],
-      "js": ["content/leetcode.js"],
+      "js": ["content/overlay.js", "content/leetcode.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["https://neetcode.io/problems/*"],
-      "js": ["content/neetcode.js"],
+      "js": ["content/overlay.js", "content/neetcode.js"],
       "run_at": "document_idle"
     }
   ],

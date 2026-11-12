@@ -77,6 +77,42 @@
     }
   });
 
+  // Watch for accepted submissions and auto-show the feedback overlay
+  watchForAcceptedSubmission(problemData);
+
+  function watchForAcceptedSubmission(problem) {
+    let lastShownUrl = null;
+    const observer = new MutationObserver(() => {
+      // NeetCode shows success indicators after accepted submissions
+      const resultEl =
+        document.querySelector('[class*="accepted"], [class*="success"], [class*="correct"]');
+
+      if (!resultEl) return;
+      const text = resultEl.textContent?.trim().toLowerCase();
+      if (!text.includes("accepted") && !text.includes("correct") && !text.includes("success")) return;
+
+      if (lastShownUrl === window.location.href) return;
+      lastShownUrl = window.location.href;
+
+      const solutionCode = grabSolutionCode();
+      showFeedbackOverlay(problem, solutionCode);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function grabSolutionCode() {
+    // Monaco editor
+    const lines = document.querySelectorAll(".view-line");
+    if (lines.length > 0) {
+      return [...lines].map((l) => l.textContent).join("\n");
+    }
+    // CodeMirror
+    const cm = document.querySelector(".CodeMirror");
+    if (cm?.CodeMirror) return cm.CodeMirror.getValue();
+    return null;
+  }
+
   function waitForElement(selector, timeout = 5000) {
     return new Promise((resolve) => {
       const el = document.querySelector(selector);
