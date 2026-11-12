@@ -4,6 +4,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { DifficultyBadge } from "@/components/difficulty-badge";
 import { RecallMeter } from "@/components/recall-meter";
+import { Logo } from "@/components/logo";
 import { cn } from "cn";
 
 const EXAMPLE = [
@@ -21,10 +22,7 @@ export default async function Home() {
   return (
     <div className="mx-auto grid min-h-screen w-full max-w-5xl items-center gap-12 px-4 py-16 lg:grid-cols-[minmax(0,1fr)_420px]">
       <div className="space-y-6">
-        <p className="font-heading text-lg font-bold tracking-[-0.04em]">
-          <span className="font-normal text-muted-foreground">~/</span>Leet
-          <span className="text-due-text">Pro</span>
-        </p>
+        <Logo className="text-xl" markClassName="size-8" />
         <h1 className="font-heading text-[clamp(2rem,4.5vw,3.25rem)] font-bold leading-[1.02] tracking-[-0.045em]">
           Know which problems you&apos;re about to forget.
         </h1>

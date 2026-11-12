@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "./user-menu";
+import { Logo } from "./logo";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard" },
@@ -19,8 +20,8 @@ export function Nav() {
     <header className="border-b bg-background">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="font-heading text-lg font-bold tracking-[-0.04em]">
-            <span className="font-normal text-muted-foreground">~/</span>Leet<span className="text-due-text">Pro</span>
+          <Link href="/dashboard" aria-label="LeetPro dashboard" className="text-lg">
+            <Logo />
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (

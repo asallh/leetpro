@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -40,7 +41,14 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4">
+      <Link
+        href="/"
+        aria-label="LeetPro home"
+        className="mb-8 text-lg"
+      >
+        <Logo />
+      </Link>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="font-heading text-2xl font-bold tracking-[-0.03em]">Create an account</CardTitle>

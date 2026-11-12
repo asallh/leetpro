@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>LeetPro</title>
+  <!-- Ledger mark: three entries fading from top to bottom; the amber one is due. See DESIGN.md. -->
+  <rect width="32" height="32" fill="#16171A"/>
+  <rect x="8" y="8" width="16" height="4" rx="1" fill="#E9E6DF"/>
+  <rect x="8" y="14" width="12" height="4" rx="1" fill="#8F8C85"/>
+  <rect x="8" y="20" width="8" height="4" rx="1" fill="#F0B429"/>
+</svg>

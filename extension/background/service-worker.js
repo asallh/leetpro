@@ -84,3 +84,35 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // Also update on install/startup
 chrome.runtime.onInstalled.addListener(() => updateBadge());
 chrome.runtime.onStartup.addListener(() => updateBadge());
+
+// Grey out the icon on sites that aren't leetcode or neetcode
+const SUPPORTED_PATTERNS = [/^https:\/\/leetcode\.com\//, /^https:\/\/neetcode\.io\//];
+
+function isSupportedSite(url) {
+  return SUPPORTED_PATTERNS.some((p) => p.test(url || ""));
+}
+
+function updateIcon(tabId, url) {
+  const active = isSupportedSite(url);
+  const suffix = active ? "" : "-grey";
+  chrome.action.setIcon({
+    tabId,
+    path: {
+      16: `icons/icon16${suffix}.png`,
+      32: `icons/icon32${suffix}.png`,
+      48: `icons/icon48${suffix}.png`,
+      128: `icons/icon128${suffix}.png`,
+    },
+  });
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url || changeInfo.status === "complete") {
+    updateIcon(tabId, tab.url);
+  }
+});
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  const tab = await chrome.tabs.get(tabId);
+  updateIcon(tabId, tab.url);
+});

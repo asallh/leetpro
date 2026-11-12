@@ -130,6 +130,12 @@ Flat. Hierarchy comes from surface steps (background → surface → surface-rai
 
 ## Components
 
+- **Logo mark:** a graphite tile (rx 7 on a 32 grid) holding three ledger lines that shorten and fade top to bottom: ink #E9E6DF (16 wide), muted #8F8C85 (12), amber #F0B429 (8). The last, amber line is the entry that's due. Lines are 4 units tall on even rows, so at 16px each is exactly 2px and stays sharp. The tile stays graphite in light mode too.
+  - Source of truth: `brand/leetpro-mark.svg` (rounded) and `brand/leetpro-mark-square.svg` (full-bleed, for iOS).
+  - Web: `src/app/icon.svg`, `src/app/favicon.ico` (16/32/48), `src/app/apple-icon.png` (180), and `<Logo />` / `<LogoMark />` in `src/components/logo.tsx`.
+  - Extension: `extension/icons/icon{16,32,48,128}.png` and the inline SVG in `extension/popup/popup.html`.
+  - PNG and ICO files are rasterized from the brand SVG with the sharp copy Next.js already installs. Change the SVG first, then regenerate every size and update the two inline copies.
+- **Wordmark:** `Leet` in ink + `Pro` in `due-text`, JetBrains Mono 700, tracking -0.04em, always to the right of the mark with an 8px gap. No `~/` prefix.
 - **Difficulty glyph** (`DifficultyBadge`): a 22px mono square with E, M or H. Easy: outline border. Medium: outline in ink. Hard: filled ink with surface text. The full word is in `title` and `aria-label`.
 - **Recall meter** (`RecallMeter`): five 6px squares plus the % in mono. Filled squares are ink; when the problem is due (recall < 70%) the filled squares and the % turn amber. Recall is an estimate from `lastAttemptDate` and `reviewInterval` (`src/lib/recall.ts`): it reaches 70% on the scheduled review date.
 - **Due row marker:** due rows prefix the title with an amber `›`.
@@ -159,3 +165,4 @@ Flat. Hierarchy comes from surface steps (background → surface → surface-rai
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-11-12 | Initial design system created ("Ledger") | Created by /design-consultation from product context, NeetCode research and a three-direction preview; user picked Ledger over Highlighter and Tide. |
+| 2026-11-12 | Fading-ledger logo mark; shared across favicon, app and extension | Replaces the Next.js default favicon and the old extension icons; dropped the `~/` wordmark prefix now that the mark carries the terminal feel. |
