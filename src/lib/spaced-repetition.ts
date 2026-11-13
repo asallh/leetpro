@@ -32,8 +32,10 @@ export function calculateNextReview(input: ReviewInput): ReviewResult {
 
   let newInterval = BASE_INTERVALS[confidence] ?? 1;
 
+  // Grow from the current interval, but never below the base for this
+  // confidence: a 5 after a shaky attempt (interval 1) should still wait 14 days.
   if (confidence >= 4 && currentInterval > 0) {
-    newInterval = Math.min(currentInterval * 2, MAX_INTERVAL);
+    newInterval = Math.min(Math.max(newInterval, currentInterval * 2), MAX_INTERVAL);
   }
 
   if (confidence <= 2) {
