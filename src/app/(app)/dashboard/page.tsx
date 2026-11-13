@@ -34,8 +34,18 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { format, formatDistanceToNow, subDays } from "date-fns";
+import { Suspense } from "react";
+import Loading from "../loading";
 
-export default async function DashboardPage() {
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+async function DashboardContent() {
   const session = await getRequiredSession();
   const userId = session.user.id;
   const now = new Date();

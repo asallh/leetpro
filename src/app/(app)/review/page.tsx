@@ -8,8 +8,18 @@ import { estimateRecall } from "@/lib/recall";
 import { cn } from "cn";
 import { ReviewAttemptDialog } from "./review-attempt-dialog";
 import { formatDistanceToNow } from "date-fns";
+import { Suspense } from "react";
+import Loading from "../loading";
 
-export default async function ReviewPage() {
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ReviewContent />
+    </Suspense>
+  );
+}
+
+async function ReviewContent() {
   const session = await getRequiredSession();
   const now = new Date();
 

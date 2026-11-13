@@ -6,6 +6,7 @@ import { DifficultyBadge } from "@/components/difficulty-badge";
 import { RecallMeter } from "@/components/recall-meter";
 import { Logo } from "@/components/logo";
 import { cn } from "cn";
+import { Suspense } from "react";
 
 const EXAMPLE = [
   { id: 42, title: "Trapping Rain Water", d: "hard", r: 0.38 },
@@ -15,7 +16,15 @@ const EXAMPLE = [
   { id: 1, title: "Two Sum", d: "easy", r: 0.97 },
 ] as const;
 
-export default async function Home() {
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+async function HomeContent() {
   const session = await getOptionalSession();
   if (session) redirect("/dashboard");
 

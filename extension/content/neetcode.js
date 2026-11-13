@@ -94,8 +94,9 @@
       if (lastShownUrl === window.location.href) return;
       lastShownUrl = window.location.href;
 
-      const solutionCode = grabSolutionCode();
-      showFeedbackOverlay(problem, solutionCode);
+      readEditorSolution(grabSolutionCode).then((solution) =>
+        showFeedbackOverlay(problem, solution)
+      );
     });
 
     observer.observe(document.body, { childList: true, subtree: true });

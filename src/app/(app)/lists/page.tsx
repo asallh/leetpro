@@ -5,6 +5,8 @@ import { DifficultyBadge } from "@/components/difficulty-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/page-header";
+import { Suspense } from "react";
+import Loading from "../loading";
 
 interface ListSection {
   name: string;
@@ -12,7 +14,15 @@ interface ListSection {
   problems: { leetcodeId: number; title: string; difficulty: "easy" | "medium" | "hard"; category: string }[];
 }
 
-export default async function ListsPage() {
+export default function ListsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ListsContent />
+    </Suspense>
+  );
+}
+
+async function ListsContent() {
   const session = await getRequiredSession();
 
   const userProblems = await prisma.userProblem.findMany({

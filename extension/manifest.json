@@ -3,7 +3,12 @@
   "name": "LeetPro",
   "version": "1.0.0",
   "description": "Track your LeetCode and NeetCode practice with spaced repetition",
-  "permissions": ["activeTab", "storage", "alarms", "tabs"],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "alarms",
+    "tabs"
+  ],
   "host_permissions": [
     "https://leetcode.com/*",
     "https://neetcode.io/*",
@@ -11,14 +16,35 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://leetcode.com/problems/*"],
-      "js": ["content/overlay.js", "content/leetcode.js"],
+      "matches": [
+        "https://leetcode.com/problems/*"
+      ],
+      "js": [
+        "content/overlay.js",
+        "content/leetcode.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://neetcode.io/problems/*"],
-      "js": ["content/overlay.js", "content/neetcode.js"],
+      "matches": [
+        "https://neetcode.io/problems/*"
+      ],
+      "js": [
+        "content/overlay.js",
+        "content/neetcode.js"
+      ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://leetcode.com/problems/*",
+        "https://neetcode.io/problems/*"
+      ],
+      "js": [
+        "content/page-bridge.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ],
   "background": {

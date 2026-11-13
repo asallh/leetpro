@@ -18,22 +18,22 @@ export async function POST(request: Request) {
 
   const data = parsed.data;
 
+  // Problem rows are shared by every user, so a client may only create a
+  // missing problem, never rewrite an existing one. The link is built here
+  // from the slug so no one can point a problem at another site.
+  const url =
+    data.platform === "neetcode"
+      ? `https://neetcode.io/problems/${data.slug}`
+      : `https://leetcode.com/problems/${data.slug}/`;
+
   const problem = await prisma.problem.upsert({
     where: { slug: data.slug },
-    update: {
-      title: data.title,
-      difficulty: data.difficulty,
-      url: data.url,
-      topics: data.topics ?? [],
-      lists: data.lists ?? [],
-      ...(data.leetcodeId && { leetcodeId: data.leetcodeId }),
-      ...(data.neetcodeId && { neetcodeId: data.neetcodeId }),
-    },
+    update: {},
     create: {
       title: data.title,
       slug: data.slug,
       difficulty: data.difficulty,
-      url: data.url,
+      url,
       platform: data.platform,
       topics: data.topics ?? [],
       lists: data.lists ?? [],

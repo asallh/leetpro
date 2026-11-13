@@ -45,6 +45,10 @@ export async function POST(request: Request) {
         helpUsed: data.helpUsed,
         approach: data.approach,
         notes: data.notes,
+        solution: data.solution,
+        language: data.language,
+        prevInterval: existingStatus?.reviewInterval ?? 0,
+        prevStatus: existingStatus?.status ?? "new_problem",
         patterns: data.patterns ?? [],
         attemptNumber: attemptCount + 1,
       },
@@ -75,7 +79,11 @@ export async function POST(request: Request) {
     }),
   ]);
 
-  return NextResponse.json(attempt);
+  return NextResponse.json({
+    ...attempt,
+    nextReviewDate: review.nextReviewDate,
+    reviewInterval: review.newInterval,
+  });
 }
 
 export async function GET(request: Request) {

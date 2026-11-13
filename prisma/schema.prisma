@@ -136,7 +136,12 @@ model Attempt {
   helpUsed      HelpUsed      @default(none) @map("help_used")
   approach      String?
   notes         String?
+  solution      String?
+  language      String?
   patterns      String[]
+  // Schedule before this attempt, so edits to it can recompute the review.
+  prevInterval  Int?           @map("prev_interval")
+  prevStatus    ProblemStatus? @map("prev_status")
   attemptNumber Int           @map("attempt_number")
   createdAt     DateTime      @default(now()) @map("created_at")
 

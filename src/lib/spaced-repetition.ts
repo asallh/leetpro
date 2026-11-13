@@ -6,6 +6,8 @@ interface ReviewInput {
   confidence: number;
   currentInterval: number;
   currentStatus: ProblemStatus;
+  /** Date the interval counts from. Defaults to now. */
+  from?: Date;
 }
 
 interface ReviewResult {
@@ -26,7 +28,7 @@ const MAX_INTERVAL = 180;
 
 export function calculateNextReview(input: ReviewInput): ReviewResult {
   const { confidence, currentInterval, currentStatus } = input;
-  const now = new Date();
+  const now = input.from ?? new Date();
 
   let newInterval = BASE_INTERVALS[confidence] ?? 1;
 

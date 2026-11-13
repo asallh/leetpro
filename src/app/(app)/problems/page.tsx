@@ -14,8 +14,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format, formatDistanceToNow, isToday } from "date-fns";
+import { Suspense } from "react";
+import Loading from "../loading";
 
-export default async function ProblemsPage() {
+export default function ProblemsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ProblemsContent />
+    </Suspense>
+  );
+}
+
+async function ProblemsContent() {
   const session = await getRequiredSession();
 
   const userProblems = await prisma.userProblem.findMany({

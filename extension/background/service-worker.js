@@ -38,6 +38,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "UPDATE_ATTEMPT") {
+    apiRequest(`/api/attempts/${encodeURIComponent(message.id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(message.data),
+    })
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   if (message.type === "GET_STATS") {
     apiRequest("/api/stats")
       .then((data) => sendResponse({ success: true, data }))
