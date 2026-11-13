@@ -31,6 +31,8 @@ import {
   formatPct,
   summarizeAttempts,
 } from "@/lib/dashboard-metrics";
+import { recommendNextAction } from "@/lib/recommendations";
+import { RecommendedAction } from "@/components/recommended-action";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { format, formatDistanceToNow, subDays } from "date-fns";
@@ -88,6 +90,12 @@ async function DashboardContent() {
       }),
     ]);
 
+  const recommendation = recommendNextAction({
+    userProblems,
+    attempts: attempts90,
+    now,
+  });
+
   const attempts30 = attempts90.filter((a) => new Date(a.date) >= since30);
   const attempts14 = attempts90.filter((a) => new Date(a.date) >= since14);
   const attemptsPrev14 = attempts90.filter((a) => {
@@ -139,12 +147,9 @@ async function DashboardContent() {
               : `Welcome back, ${session.user.name}. Everything you've tracked is holding. Solve something new or check the forecast.`}
           </p>
         </div>
-        {totalReviewDue > 0 && (
-          <Link href="/review" className={cn(buttonVariants({ size: "lg" }), "px-4")}>
-            Start review
-          </Link>
-        )}
       </div>
+
+      <RecommendedAction rec={recommendation} />
 
       <section className="rounded-lg border bg-card">
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-3 py-2.5">
