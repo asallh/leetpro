@@ -1,6 +1,7 @@
 const states = {
   loading: document.getElementById("loading"),
   notAuth: document.getElementById("not-auth"),
+  offline: document.getElementById("offline"),
   problemDetected: document.getElementById("problem-detected"),
   noProblem: document.getElementById("no-problem"),
   success: document.getElementById("success"),
@@ -27,6 +28,21 @@ const STATUS_LABELS = {
   review: "Review",
   mastered: "Mastered",
 };
+
+const API_BASE = self.LEETPRO_CONFIG.apiBase.replace(/\/+$/, "");
+
+// Links open the configured app in a new tab (and close the popup), so dev
+// and production builds never point at the wrong host.
+document.querySelectorAll("a[data-path]").forEach((link) => {
+  link.href = `${API_BASE}${link.dataset.path}`;
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: link.href });
+    window.close();
+  });
+});
+
+document.getElementById("retry-btn").addEventListener("click", () => init());
 
 let selectedConfidence = 3;
 let currentProblem = null;
@@ -79,6 +95,8 @@ document.getElementById("attempt-form").addEventListener("submit", async (e) => 
     if (response?.success) {
       showState("success");
       setTimeout(() => window.close(), 2000);
+    } else if (response?.status === 401) {
+      showState("notAuth");
     } else {
       alert("Failed to log attempt: " + (response?.error || "Unknown error"));
     }
@@ -92,7 +110,15 @@ async function init() {
   // Check auth
   chrome.runtime.sendMessage({ type: "CHECK_AUTH" }, async (authRes) => {
     if (!authRes?.authenticated) {
-      showState("notAuth");
+      if (authRes?.reachable === false) {
+        document.getElementById("offline-detail").textContent =
+          authRes.status >= 500
+            ? `LeetPro is having trouble (server ${authRes.status}). Try again shortly.`
+            : "Check your connection and try again.";
+        showState("offline");
+      } else {
+        showState("notAuth");
+      }
       return;
     }
 
@@ -111,6 +137,10 @@ async function init() {
 
     // Fetch server-side stats for this slug
     chrome.runtime.sendMessage({ type: "GET_PROBLEM_STATS", slug }, (res) => {
+      if (res?.status === 401) {
+        showState("notAuth");
+        return;
+      }
       if (res?.success && res.data?.found) {
         const { problem, stats, recentAttempts, tracked } = res.data;
         currentProblem = problem;
@@ -214,6 +244,10 @@ function showProblemStats(stats, recentAttempts) {
 
 function showStatsUI() {
   chrome.runtime.sendMessage({ type: "GET_STATS" }, (res) => {
+    if (res?.status === 401) {
+      showState("notAuth");
+      return;
+    }
     if (res?.success && res.data) {
       document.getElementById("stat-solved").textContent =
         res.data.totalProblems || 0;

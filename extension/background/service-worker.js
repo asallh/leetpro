@@ -1,20 +1,38 @@
-const API_BASE_KEY = "leetpro_api_base";
-const DEFAULT_API_BASE = "http://localhost:3000";
+importScripts("../config.js");
 
-async function getApiBase() {
-  const result = await chrome.storage.local.get(API_BASE_KEY);
-  return result[API_BASE_KEY] || DEFAULT_API_BASE;
+const API_BASE = self.LEETPRO_CONFIG.apiBase.replace(/\/+$/, "");
+
+// Errors carry the HTTP status so callers can tell "signed out" (401) apart
+// from "server down" (status 0 = network failure, CORS, DNS, offline).
+class ApiError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
 }
 
 async function apiRequest(path, options = {}) {
-  const base = await getApiBase();
-  const res = await fetch(`${base}${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      credentials: "include",
+      cache: "no-store",
+      ...options,
+      headers: {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new ApiError(0, "Couldn't reach LeetPro");
+  }
+  if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`);
   return res.json();
+}
+
+function fail(sendResponse) {
+  return (err) =>
+    sendResponse({ success: false, status: err.status ?? 0, error: err.message });
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -24,7 +42,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       body: JSON.stringify(message.data),
     })
       .then((data) => sendResponse({ success: true, data }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch(fail(sendResponse));
     return true;
   }
 
@@ -34,7 +52,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       body: JSON.stringify(message.data),
     })
       .then((data) => sendResponse({ success: true, data }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch(fail(sendResponse));
     return true;
   }
 
@@ -44,34 +62,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       body: JSON.stringify(message.data),
     })
       .then((data) => sendResponse({ success: true, data }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch(fail(sendResponse));
     return true;
   }
 
   if (message.type === "GET_STATS") {
     apiRequest("/api/stats")
       .then((data) => sendResponse({ success: true, data }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch(fail(sendResponse));
     return true;
   }
 
   if (message.type === "GET_PROBLEM_STATS") {
     apiRequest(`/api/problems/stats?slug=${encodeURIComponent(message.slug)}`)
       .then((data) => sendResponse({ success: true, data }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch(fail(sendResponse));
     return true;
   }
 
   if (message.type === "CHECK_AUTH") {
+    // get-session answers 200 with `null` when nobody is signed in.
     apiRequest("/api/auth/get-session")
-      .then((data) => sendResponse({ success: true, authenticated: !!data }))
-      .catch(() => sendResponse({ success: false, authenticated: false }));
+      .then((data) => {
+        const authenticated = !!data?.session;
+        if (authenticated) updateBadge();
+        else chrome.action.setBadgeText({ text: "" });
+        sendResponse({ success: true, reachable: true, authenticated });
+      })
+      .catch((err) =>
+        sendResponse({
+          success: false,
+          reachable: err.status !== 0 && err.status < 500,
+          authenticated: false,
+          status: err.status,
+        })
+      );
     return true;
   }
 
-  if (message.type === "SET_API_BASE") {
-    chrome.storage.local.set({ [API_BASE_KEY]: message.url });
-    sendResponse({ success: true });
+  if (message.type === "GET_CONFIG") {
+    sendResponse({ apiBase: API_BASE });
     return false;
   }
 });

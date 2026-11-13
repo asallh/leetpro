@@ -28,9 +28,16 @@
 
     <div id="not-auth" class="state hidden">
       <p>Sign in to start tracking</p>
-      <a id="sign-in-link" href="http://localhost:3000/sign-in" target="_blank" class="btn primary">
+      <a id="sign-in-link" href="#" data-path="/sign-in" class="btn primary">
         Sign in to LeetPro
       </a>
+      <p class="hint">Already signed in? Reopen this popup.</p>
+    </div>
+
+    <div id="offline" class="state hidden">
+      <p>Can't reach LeetPro right now</p>
+      <p class="hint" id="offline-detail">Check your connection and try again.</p>
+      <button type="button" id="retry-btn" class="btn outline">Retry</button>
     </div>
 
     <div id="problem-detected" class="state hidden">
@@ -130,7 +137,7 @@
         </div>
       </div>
       <p class="hint">Visit a LeetCode or NeetCode problem to start tracking</p>
-      <a id="dashboard-link" href="http://localhost:3000/dashboard" target="_blank" class="btn outline">
+      <a id="dashboard-link" href="#" data-path="/dashboard" class="btn outline">
         Open dashboard
       </a>
     </div>
@@ -142,6 +149,7 @@
     </div>
   </div>
 
+  <script src="../config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

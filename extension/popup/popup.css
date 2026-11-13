@@ -388,11 +388,17 @@ button:focus-visible, a:focus-visible {
   margin-top: 4px;
 }
 
-#not-auth {
+#not-auth,
+#offline {
   padding: 8px 0;
 }
 
-#not-auth p {
+#not-auth p,
+#offline p {
   margin-bottom: 12px;
   color: var(--muted);
+}
+
+#not-auth .btn + .hint {
+  margin: 10px 0 0;
 }
