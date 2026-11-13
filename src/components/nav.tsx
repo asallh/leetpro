@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { UserMenu } from "./user-menu";
 import { Logo } from "./logo";
 
@@ -13,16 +14,26 @@ const navItems = [
   { label: "Lists", href: "/lists" },
 ];
 
-export function Nav() {
+export function Nav({ showDevPill = false }: { showDevPill?: boolean }) {
   const pathname = usePathname();
 
   return (
     <header className="border-b bg-background">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" aria-label="LeetPro dashboard" className="text-lg">
-            <Logo />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" aria-label="LeetPro dashboard" className="text-lg">
+              <Logo />
+            </Link>
+            {showDevPill ? (
+              <Badge
+                variant="outline"
+                className="rounded-full border-[#C084FC] bg-transparent font-mono text-[10px] uppercase tracking-wide text-[#C084FC]"
+              >
+                dev
+              </Badge>
+            ) : null}
+          </div>
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
