@@ -85,6 +85,98 @@ document.getElementById("attempt-form").addEventListener("submit", async (e) => 
   });
 });
 
+// Account menu (header dots): who you're signed in as, dashboard, sign out
+const menu = {
+  root: document.getElementById("account-menu"),
+  trigger: document.getElementById("menu-trigger"),
+  panel: document.getElementById("menu-panel"),
+  name: document.getElementById("menu-account-name"),
+  email: document.getElementById("menu-account-email"),
+  signOut: document.getElementById("menu-sign-out"),
+  error: document.getElementById("menu-error"),
+};
+
+function menuItems() {
+  return [...menu.panel.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+}
+
+function openMenu() {
+  menu.panel.hidden = false;
+  menu.trigger.setAttribute("aria-expanded", "true");
+  menuItems()[0]?.focus();
+}
+
+function closeMenu({ returnFocus = true } = {}) {
+  if (menu.panel.hidden) return;
+  menu.panel.hidden = true;
+  menu.trigger.setAttribute("aria-expanded", "false");
+  menu.error.hidden = true;
+  if (returnFocus) menu.trigger.focus();
+}
+
+function showAccountMenu(user) {
+  menu.name.textContent = user?.name || "";
+  menu.email.textContent = user?.email || "";
+  document.getElementById("menu-account").hidden = !user?.name && !user?.email;
+  menu.root.classList.remove("hidden");
+}
+
+function hideAccountMenu() {
+  closeMenu({ returnFocus: false });
+  menu.root.classList.add("hidden");
+}
+
+menu.trigger.addEventListener("click", () => {
+  if (menu.panel.hidden) openMenu();
+  else closeMenu();
+});
+
+menu.panel.addEventListener("keydown", (event) => {
+  const items = menuItems();
+  const index = items.indexOf(document.activeElement);
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeMenu();
+  } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    items[(index + step + items.length) % items.length]?.focus();
+  } else if (event.key === "Home" || event.key === "End") {
+    event.preventDefault();
+    items[event.key === "Home" ? 0 : items.length - 1]?.focus();
+  } else if (event.key === "Tab") {
+    closeMenu({ returnFocus: false });
+  }
+});
+
+document.addEventListener("click", (event) => {
+  if (!menu.root.contains(event.target)) closeMenu({ returnFocus: false });
+});
+
+document.getElementById("menu-dashboard").addEventListener("click", () =>
+  closeMenu({ returnFocus: false })
+);
+
+// Sign out ends the shared session, so the website is signed out too.
+menu.signOut.addEventListener("click", () => {
+  menu.signOut.disabled = true;
+  menu.signOut.textContent = "Signing out…";
+  menu.error.hidden = true;
+  chrome.runtime.sendMessage({ type: "SIGN_OUT" }, (response) => {
+    menu.signOut.disabled = false;
+    menu.signOut.textContent = "Sign out";
+    if (response?.success) {
+      hideAccountMenu();
+      currentProblem = null;
+      showState("notAuth");
+    } else {
+      menu.error.textContent = "Couldn't sign out. Check your connection and try again.";
+      menu.error.hidden = false;
+      menu.signOut.focus();
+    }
+  });
+});
+
 // Initialize popup
 async function init() {
   showState("loading");
@@ -92,9 +184,11 @@ async function init() {
   // Check auth
   chrome.runtime.sendMessage({ type: "CHECK_AUTH" }, async (authRes) => {
     if (!authRes?.authenticated) {
+      hideAccountMenu();
       showState("notAuth");
       return;
     }
+    showAccountMenu(authRes.user);
 
     // Get current tab URL to detect problem
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
