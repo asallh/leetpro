@@ -61,8 +61,26 @@ document.getElementById("attempt-form").addEventListener("submit", async (e) => 
   submitBtn.disabled = true;
   submitBtn.textContent = "Logging...";
 
+  // The server may not know this problem yet (the page loaded while signed
+  // out, or detection failed). Register it first so the attempt has an id.
+  if (!currentProblem?.id && currentProblem?.slug) {
+    const detected = await new Promise((resolve) =>
+      chrome.runtime.sendMessage({ type: "PROBLEM_DETECTED", data: currentProblem }, resolve)
+    );
+    if (detected?.success && detected.data?.id) {
+      currentProblem = { ...currentProblem, id: detected.data.id };
+    }
+  }
+
+  if (!currentProblem?.id) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Log attempt";
+    alert("Couldn't log attempt: LeetPro doesn't recognise this problem yet. Refresh the problem page and try again.");
+    return;
+  }
+
   const data = {
-    problemId: currentProblem?.id,
+    problemId: currentProblem.id,
     result: document.getElementById("result").value,
     confidence: selectedConfidence,
     timeMinutes: document.getElementById("time-minutes").value
@@ -134,13 +152,21 @@ async function init() {
         showProblemUI(storedProblem);
         document.getElementById("problem-new").classList.remove("hidden");
       } else {
-        // Fallback: we know the slug from URL but have no data
-        showProblemUI({
+        // Fallback: we know the slug from URL but have no data. Keep enough
+        // to register the problem when the attempt is logged.
+        const onNeetcode = /neetcode\.io/.test(tab?.url || "");
+        currentProblem = {
           title: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
           slug,
           difficulty: "medium",
           topics: [],
-        });
+          platform: onNeetcode ? "neetcode" : "leetcode",
+          url: onNeetcode
+            ? `https://neetcode.io/problems/${slug}`
+            : `https://leetcode.com/problems/${slug}/`,
+          ...(onNeetcode && { neetcodeId: slug }),
+        };
+        showProblemUI(currentProblem);
         document.getElementById("problem-new").classList.remove("hidden");
       }
     });
