@@ -1,6 +1,7 @@
 importScripts("../config.js");
 
 const API_BASE = self.LEETPRO_CONFIG.apiBase.replace(/\/+$/, "");
+const IS_DEV = (self.LEETPRO_CONFIG.env ?? "").toLowerCase() !== "prod";
 
 // Errors carry the HTTP status so callers can tell "signed out" (401) apart
 // from "server down" (status 0 = network failure, CORS, DNS, offline).
@@ -164,19 +165,71 @@ function isSupportedSite(url) {
   return SUPPORTED_PATTERNS.some((p) => p.test(url || ""));
 }
 
-function updateIcon(tabId, url) {
-  const active = isSupportedSite(url);
-  if (active) {
-    chrome.action.setIcon({ tabId, path: {
-      16: "icons/icon16.png", 32: "icons/icon32.png",
-      48: "icons/icon48.png", 128: "icons/icon128.png",
-    }}).catch(() => {});
-  } else {
-    chrome.action.setIcon({ tabId, path: {
-      16: "icons/icon16-grey.png", 32: "icons/icon32-grey.png",
-      48: "icons/icon48-grey.png", 128: "icons/icon128-grey.png",
-    }}).catch(() => {});
+const ICON_SIZES = [16, 32, 48, 128];
+const iconPaths = (variant) =>
+  Object.fromEntries(ICON_SIZES.map((size) => [size, `icons/icon${size}${variant}.png`]));
+
+// Dev builds stamp a violet band (the web app's DEV pill color) across the
+// bottom of the toolbar icon, so a dev and a production install never look
+// alike. Drawn once per variant at runtime, so there are no extra PNGs to keep
+// in sync with the real icons.
+const devIconCache = new Map();
+
+function devIcon(variant) {
+  if (!devIconCache.has(variant)) {
+    devIconCache.set(variant, drawDevIcon(variant).catch((err) => {
+      devIconCache.delete(variant);
+      throw err;
+    }));
   }
+  return devIconCache.get(variant);
+}
+
+async function drawDevIcon(variant) {
+  const imageData = {};
+  for (const size of ICON_SIZES) {
+    const res = await fetch(chrome.runtime.getURL(`icons/icon${size}${variant}.png`));
+    const bitmap = await createImageBitmap(await res.blob());
+    const canvas = new OffscreenCanvas(size, size);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, size, size);
+
+    const band = Math.max(4, Math.round(size * 0.28));
+    ctx.fillStyle = "#C084FC";
+    ctx.fillRect(0, size - band, size, band);
+    if (size >= 48) {
+      ctx.fillStyle = "#16171A";
+      ctx.font = `700 ${Math.round(band * 0.78)}px ui-monospace, Menlo, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("DEV", size / 2, size - band / 2 + 0.5);
+    }
+    imageData[size] = ctx.getImageData(0, 0, size, size);
+  }
+  return imageData;
+}
+
+async function setIcon(details, variant) {
+  try {
+    if (IS_DEV) {
+      await chrome.action.setIcon({ ...details, imageData: await devIcon(variant) });
+    } else {
+      await chrome.action.setIcon({ ...details, path: iconPaths(variant) });
+    }
+  } catch {
+    // The tab may have closed; a failed dev stamp falls back to the plain icon.
+    if (IS_DEV) chrome.action.setIcon({ ...details, path: iconPaths(variant) }).catch(() => {});
+  }
+}
+
+function updateIcon(tabId, url) {
+  setIcon({ tabId }, isSupportedSite(url) ? "" : "-grey");
+}
+
+if (IS_DEV) {
+  // Default icon for tabs that haven't fired an update yet.
+  setIcon({}, "");
+  chrome.action.setTitle({ title: "LeetPro (Dev)" });
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {

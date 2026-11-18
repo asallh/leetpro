@@ -205,7 +205,7 @@ The extension has no sign-in form of its own. It reuses the web app's session co
 ### Building for production
 
 ```bash
-pnpm extension:build --api-base https://your-domain.com --version 1.0.1
+pnpm extension:build --api-base https://your-domain.com --env prod --version 1.0.1
 ```
 
 This writes `dist/extension/` (load it unpacked to test) and `dist/leetpro-extension-<version>.zip` (upload it to the Chrome Web Store). The script:
@@ -213,6 +213,8 @@ This writes `dist/extension/` (load it unpacked to test) and `dist/leetpro-exten
 - writes `config.js` with the deployed origin, which the popup links and every API call use
 - replaces the `localhost` host permission with `https://your-domain.com/*`, so Chrome sends the session cookie and the requests skip CORS
 - refuses non-HTTPS origins, URLs with a path, leftover `localhost` references, and manifest entries that point at missing files
+
+`--env` works like the web app's `ENV` and can also come from it. Anything but `prod`, including leaving it out, builds a dev extension: it's named **LeetPro (Dev)**, shows a violet DEV pill in the popup, and stamps a DEV band on the toolbar icon. The checked-in `extension/` folder is a dev build too. Build with `--env prod` for the Web Store.
 
 `--api-base` can also come from `LEETPRO_API_BASE`. `--version` is optional and overrides `manifest.json`. Bump it on every Web Store upload.
 
