@@ -62,8 +62,9 @@ document.getElementById("attempt-form").addEventListener("submit", async (e) => 
   submitBtn.textContent = "Logging...";
 
   // The server may not know this problem yet (the page loaded while signed
-  // out, or detection failed). Register it first so the attempt has an id.
-  if (!currentProblem?.id && currentProblem?.slug) {
+  // out, or detection failed). Register it first so the attempt has an id,
+  // but only with details the content script read from the page.
+  if (!currentProblem?.id && currentProblem?.slug && !currentProblem.unverified) {
     const detected = await new Promise((resolve) =>
       chrome.runtime.sendMessage({ type: "PROBLEM_DETECTED", data: currentProblem }, resolve)
     );
@@ -152,19 +153,16 @@ async function init() {
         showProblemUI(storedProblem);
         document.getElementById("problem-new").classList.remove("hidden");
       } else {
-        // Fallback: we know the slug from URL but have no data. Keep enough
-        // to register the problem when the attempt is logged.
-        const onNeetcode = /neetcode\.io/.test(tab?.url || "");
+        // Fallback: we only know the slug from the URL. The title and
+        // difficulty would be guesses, and problem rows are shared and never
+        // rewritten, so this one is display-only: logging asks for a refresh
+        // so the content script can read the real details from the page.
         currentProblem = {
           title: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
           slug,
-          difficulty: "medium",
+          difficulty: "",
           topics: [],
-          platform: onNeetcode ? "neetcode" : "leetcode",
-          url: onNeetcode
-            ? `https://neetcode.io/problems/${slug}`
-            : `https://leetcode.com/problems/${slug}/`,
-          ...(onNeetcode && { neetcodeId: slug }),
+          unverified: true,
         };
         showProblemUI(currentProblem);
         document.getElementById("problem-new").classList.remove("hidden");
