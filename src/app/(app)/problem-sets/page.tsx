@@ -11,7 +11,7 @@ import Loading from "../loading";
 
 type State = "solved" | "fading" | "tried" | "todo";
 
-export default function ListsPage() {
+export default function ProblemSetsPage() {
   return (
     <Suspense fallback={<Loading />}>
       <ListsContent />
@@ -71,7 +71,7 @@ async function ListsContent() {
   return (
     <div className="space-y-10">
       <PageHeader
-        title="Lists"
+        title="Problem Sets"
         description="How far you are through the lists most people prepare with. A problem counts as solved once you've logged it at confidence 3 or higher."
       />
 

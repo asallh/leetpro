@@ -11,7 +11,7 @@ const navItems = [
   { label: "Today", href: "/dashboard" },
   { label: "Problems", href: "/problems" },
   { label: "Review", href: "/review" },
-  { label: "Lists", href: "/lists" },
+  { label: "Problem Sets", href: "/problem-sets" },
 ];
 
 export function Nav({ showDevPill = false }: { showDevPill?: boolean }) {

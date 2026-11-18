@@ -246,7 +246,7 @@ async function TodayContent() {
               )}
             </div>
           )}
-          <Link href="/lists" className="mt-6 inline-block text-sm font-medium text-primary hover:underline">
+          <Link href="/problem-sets" className="mt-6 inline-block text-sm font-medium text-primary hover:underline">
             See every topic
           </Link>
         </section>
