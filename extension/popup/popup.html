@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LeetPro</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Mona+Sans:wdth,wght@75..125,200..900&display=swap">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -45,11 +45,11 @@
     </header>
 
     <div id="loading" class="state">
-      <p>Loading...</p>
+      <p>Loading…</p>
     </div>
 
     <div id="not-auth" class="state hidden">
-      <p>Sign in to start tracking</p>
+      <p class="lead">Sign in to start tracking.</p>
       <a id="sign-in-link" href="#" data-path="/sign-in" class="btn primary">
         Sign in to LeetPro
       </a>
@@ -57,42 +57,34 @@
     </div>
 
     <div id="offline" class="state hidden">
-      <p>Can't reach LeetPro right now</p>
+      <p class="lead">Can't reach LeetPro right now.</p>
       <p class="hint" id="offline-detail">Check your connection and try again.</p>
       <button type="button" id="retry-btn" class="btn outline">Retry</button>
     </div>
 
     <div id="problem-detected" class="state hidden">
       <div class="problem-info">
-        <span id="problem-difficulty" class="badge"></span>
         <h2 id="problem-title"></h2>
-        <div id="problem-topics" class="topics"></div>
+        <p class="problem-meta">
+          <span id="problem-difficulty" class="diff"></span>
+          <span id="problem-topics" class="topics"></span>
+        </p>
       </div>
 
-      <div id="problem-stats" class="problem-stats hidden">
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-item-value" id="ps-attempts">—</span>
-            <span class="stat-item-label">Attempts</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-item-value" id="ps-best">—</span>
-            <span class="stat-item-label">Best conf.</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-item-value" id="ps-recall">—</span>
-            <span class="stat-item-label">Recall</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-item-value" id="ps-status">—</span>
-            <span class="stat-item-label">Status</span>
-          </div>
+      <div id="problem-stats" class="sheet problem-stats hidden">
+        <div class="recall-row">
+          <span class="recall-label">Recall</span>
+          <span class="recall-value" id="ps-recall">—</span>
         </div>
+        <p class="stats-line">
+          Tried <b id="ps-attempts">—</b>, best confidence <b id="ps-best">—</b>.
+          <span class="stage">Stage: <b id="ps-status">—</b></span>
+        </p>
         <div id="ps-history" class="history-list"></div>
       </div>
 
       <div id="problem-new" class="problem-new hidden">
-        <p>First time seeing this problem — solve it and log your attempt below.</p>
+        <p>New to you. Solve it, then log how it went below.</p>
       </div>
 
       <form id="attempt-form">
@@ -107,7 +99,7 @@
         </div>
 
         <div class="field">
-          <label>Confidence</label>
+          <label>How confident are you?</label>
           <div class="confidence-buttons">
             <button type="button" data-value="1" class="conf-btn">1</button>
             <button type="button" data-value="2" class="conf-btn">2</button>
@@ -144,29 +136,22 @@
     </div>
 
     <div id="no-problem" class="state hidden">
-      <div class="mini-stats">
-        <div class="stat">
-          <span class="stat-value" id="stat-solved">—</span>
-          <span class="stat-label">Solved</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value" id="stat-review">—</span>
-          <span class="stat-label">Due review</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value" id="stat-streak">—</span>
-          <span class="stat-label">Streak</span>
-        </div>
-      </div>
-      <p class="hint">Visit a LeetCode or NeetCode problem to start tracking</p>
+      <ul class="mini-stats">
+        <li><span class="stat-value" id="stat-solved">—</span><span class="stat-label">tracked</span></li>
+        <li><span class="stat-value" id="stat-review">—</span><span class="stat-label">due for review</span></li>
+        <li><span class="stat-value" id="stat-streak">—</span><span class="stat-label">day streak</span></li>
+      </ul>
+      <p class="hint">Open a problem on LeetCode or NeetCode and it shows up here.</p>
       <a id="dashboard-link" href="#" data-path="/dashboard" class="btn outline">
         Open dashboard
       </a>
     </div>
 
     <div id="success" class="state hidden">
-      <div class="success-icon">✓ logged</div>
-      <p>Attempt saved to your ledger</p>
+      <div class="success-icon" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="20" height="20" fill="none"><path d="M3 8.5l3.2 3L13 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <p class="success-title">Logged.</p>
       <p class="hint" id="next-review">Next review scheduled</p>
     </div>
   </div>

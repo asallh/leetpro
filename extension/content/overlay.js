@@ -126,30 +126,31 @@ const LP_STYLES = `
   .card {
     --bg: #16171A; --surface: #1E2024; --raised: #26282D;
     --text: #E9E6DF; --muted: #9C988F; --faint: #6F6C66; --border: #303238;
-    --amber: #F0B429; --on-amber: #1A1408; --success: #6CC48A; --error: #EF7B6A;
-    --sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --amber: #F0B429; --on-amber: #1A1408; --success: #6CC48A; --medium: #E3C27A; --error: #EF7B6A;
+    --sans: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --mono: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     position: fixed; right: 20px; bottom: 20px; z-index: 2147483646;
     width: 440px; max-width: calc(100vw - 40px); max-height: calc(100vh - 40px);
     display: flex; flex-direction: column;
     background: var(--surface); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px;
+    border: 1px solid var(--border); border-radius: 16px;
     box-shadow: 0 24px 48px -12px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.2);
-    font: 13px/1.45 var(--sans); -webkit-font-smoothing: antialiased;
+    font: 13.5px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
     animation: lp-in .22s cubic-bezier(.2,.8,.2,1);
     overflow: hidden;
   }
   @keyframes lp-in { from { transform: translateY(12px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+  .marker { font-stretch: 112%; }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
   button:focus-visible, input:focus-visible, textarea:focus-visible {
-    outline: 2px solid var(--amber); outline-offset: 1px;
+    outline: 2px solid var(--amber); outline-offset: 2px;
   }
 
-  /* header */
+  /* header: original mark, the problem as a marker headline */
   .head {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 12px 12px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 12px 14px 16px; border-bottom: 1px solid var(--border);
     background: var(--bg); cursor: default;
   }
   .card.min .head { border-bottom: 0; cursor: pointer; }
@@ -157,73 +158,68 @@ const LP_STYLES = `
   .head-main { min-width: 0; flex: 1; }
   .status {
     display: flex; align-items: center; gap: 6px;
-    font: 600 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
-    color: var(--success);
+    font-weight: 600; font-size: 12.5px; color: var(--success);
   }
   .status svg { flex: none; }
   .title {
-    margin-top: 5px; display: flex; align-items: center; gap: 7px;
-    font-weight: 600; font-size: 14px; letter-spacing: -.01em;
+    margin-top: 3px; display: flex; align-items: baseline; gap: 8px;
+    font-stretch: 112%; font-weight: 700; font-size: 17px; line-height: 1.2;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .title .num { font: 500 13px var(--mono); color: var(--muted); }
-  .diff {
-    flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px;
-    border: 1px solid var(--border); border-radius: 3px;
-    font: 700 10px/1 var(--mono); color: var(--text);
-  }
-  .diff.medium { border-color: var(--text); }
-  .diff.hard { border-color: var(--text); background: var(--text); color: var(--bg); }
+  .title > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .title .num { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .diff { flex: none; font-size: 12.5px; font-weight: 600; }
+  .diff.easy { color: var(--success); }
+  .diff.medium { color: var(--medium); }
+  .diff.hard { color: var(--error); }
   .icon-btn {
-    flex: none; width: 28px; height: 28px; display: grid; place-items: center;
-    border-radius: 4px; color: var(--muted);
+    flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+    border-radius: 8px; color: var(--muted);
   }
   .icon-btn:hover { background: var(--raised); color: var(--text); }
 
   /* body */
-  .body { overflow-y: auto; padding: 14px; display: grid; gap: 16px; overscroll-behavior: contain; }
+  .body { overflow-y: auto; padding: 16px; display: grid; gap: 18px; overscroll-behavior: contain; }
   .card.min .body, .card.min .foot { display: none; }
   .label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
-  .label {
-    display: block; font: 600 10.5px/1 var(--mono); letter-spacing: .08em;
-    text-transform: uppercase; color: var(--muted);
-  }
+  .label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text); }
   .label-row .label { margin: 0; }
-  .aside { font-size: 12px; color: var(--muted); }
+  .aside { font-size: 12.5px; color: var(--muted); }
   .aside b { color: var(--text); font-weight: 600; }
 
   .seg {
     display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
-    background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px; gap: 2px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 3px;
   }
   .seg button {
-    height: 30px; border-radius: 3px; color: var(--muted); font-size: 12.5px; white-space: nowrap;
+    height: 32px; border-radius: 7px; color: var(--muted); font-size: 12.5px; white-space: nowrap;
+    transition: background-color .15s ease-out, color .15s ease-out;
   }
   .seg button:hover { color: var(--text); background: var(--raised); }
-  .seg button[aria-checked="true"] { background: var(--text); color: var(--bg); font-weight: 600; }
-  .seg.mono button { font: 600 13px var(--mono); }
-  .seg.small button { height: 28px; font-size: 12px; padding: 0 4px; }
+  .seg button[aria-checked="true"] { background: var(--amber); color: var(--on-amber); font-weight: 600; }
+  .seg.mono button { font-stretch: 112%; font-size: 15px; font-weight: 700; }
+  .seg.small button { height: 30px; font-size: 12px; padding: 0 4px; }
 
-  .row { display: grid; grid-template-columns: 104px 1fr; gap: 10px; }
+  .row { display: grid; grid-template-columns: 104px 1fr; gap: 12px; }
   .field-time { position: relative; }
   .input {
-    width: 100%; height: 34px; padding: 0 36px 0 10px;
-    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--text); font: 500 13px var(--mono);
+    width: 100%; height: 38px; padding: 0 38px 0 12px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font: 600 14px var(--sans); font-variant-numeric: tabular-nums;
     -moz-appearance: textfield;
   }
   .input::-webkit-outer-spin-button, .input::-webkit-inner-spin-button { -webkit-appearance: none; }
   .input::placeholder, .notes::placeholder { color: var(--faint); }
   .suffix {
-    position: absolute; right: 10px; bottom: 0; height: 34px; display: flex; align-items: center;
-    font: 12px var(--mono); color: var(--faint); pointer-events: none;
+    position: absolute; right: 12px; bottom: 0; height: 38px; display: flex; align-items: center;
+    font-size: 12.5px; color: var(--faint); pointer-events: none;
   }
 
-  /* IDE window */
-  .ide { border: 1px solid var(--border); border-radius: 6px; background: #121316; overflow: hidden; }
+  /* IDE window: code stays in a monospace face */
+  .ide { border: 1px solid var(--border); border-radius: 12px; background: #121316; overflow: hidden; }
   .ide.off { opacity: .45; }
   .ide-bar {
-    display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 6px 0 10px;
+    display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 6px 0 12px;
     background: var(--bg); border-bottom: 1px solid var(--border);
   }
   .dots { display: flex; gap: 5px; }
@@ -231,13 +227,11 @@ const LP_STYLES = `
   .tab {
     align-self: stretch; display: flex; align-items: center; gap: 6px; padding: 0 10px;
     margin-bottom: -1px; background: #121316; border: 1px solid var(--border); border-bottom: 0;
-    border-top: 2px solid var(--amber); border-radius: 3px 3px 0 0; margin-top: 4px;
+    border-top: 2px solid var(--amber); border-radius: 6px 6px 0 0; margin-top: 5px;
     font: 12px var(--mono); color: var(--text);
   }
-  .ide-meta { margin-left: auto; font: 11px var(--mono); color: var(--faint); white-space: nowrap; }
-  .ide-btn {
-    height: 22px; padding: 0 8px; border-radius: 3px; font: 11px var(--mono); color: var(--muted);
-  }
+  .ide-meta { margin-left: auto; font-size: 12px; color: var(--faint); white-space: nowrap; }
+  .ide-btn { height: 24px; padding: 0 9px; border-radius: 6px; font-size: 12px; color: var(--muted); }
   .ide-btn:hover { background: var(--raised); color: var(--text); }
   .ide-scroll { display: flex; max-height: 240px; overflow: auto; overscroll-behavior: contain; }
   .gutter {
@@ -262,49 +256,60 @@ const LP_STYLES = `
   .t-t { color: #E9E6DF; font-weight: 600; }
   .t-f { color: #E9E6DF; }
 
-  .switch { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
-  .switch input { appearance: none; width: 26px; height: 15px; border-radius: 8px; background: var(--raised); border: 1px solid var(--border); position: relative; cursor: pointer; transition: background .15s; }
-  .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
-  .switch input:checked { background: var(--text); border-color: var(--text); }
-  .switch input:checked::after { transform: translateX(11px); background: var(--bg); }
+  .switch { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; }
+  .switch input { appearance: none; width: 28px; height: 16px; border-radius: 8px; background: var(--raised); border: 1px solid var(--border); position: relative; cursor: pointer; transition: background .15s; }
+  .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+  .switch input:checked { background: var(--amber); border-color: var(--amber); }
+  .switch input:checked::after { transform: translateX(12px); background: var(--on-amber); }
 
   .notes {
-    width: 100%; min-height: 56px; padding: 8px 10px; resize: vertical;
-    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
-    color: var(--text); font: 13px/1.45 var(--sans);
+    width: 100%; min-height: 60px; padding: 9px 12px; resize: vertical;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font: 13.5px/1.5 var(--sans);
   }
 
   /* footer */
   .foot {
-    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
     border-top: 1px solid var(--border); background: var(--bg);
   }
-  .hint { flex: 1; font: 11px var(--mono); color: var(--faint); }
+  .hint { flex: 1; font-size: 12.5px; color: var(--muted); }
   .hint b { color: var(--text); font-weight: 600; }
-  .hint .ok { color: var(--success); }
-  .hint.err { color: var(--error); font-family: var(--sans); font-size: 12px; }
+  .hint .ok { color: var(--success); font-weight: 600; }
+  .hint.err { color: var(--error); }
   kbd {
     display: inline-block; min-width: 18px; padding: 1px 4px; margin-right: 2px; text-align: center;
-    border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 3px;
+    border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px;
     font: 10.5px var(--mono); color: var(--muted);
   }
   .submit {
-    height: 34px; padding: 0 16px; border-radius: 4px;
-    background: var(--amber); color: var(--on-amber); font-weight: 700; font-size: 13px;
+    height: 38px; padding: 0 20px; border-radius: 8px;
+    background: var(--amber); color: var(--on-amber); font-weight: 700; font-size: 13.5px;
   }
   .submit:hover { background: #F4C451; }
   .submit:disabled { background: var(--raised); color: var(--muted); cursor: progress; }
 
   /* done */
-  .done { padding: 28px 20px 26px; text-align: center; }
+  .done { padding: 30px 20px 28px; text-align: center; }
   .done-icon {
-    width: 40px; height: 40px; margin: 0 auto 12px; display: grid; place-items: center;
-    border-radius: 50%; background: rgba(108,196,138,.12); color: var(--success);
+    width: 44px; height: 44px; margin: 0 auto 12px; display: grid; place-items: center;
+    border-radius: 50%; background: rgba(108,196,138,.14); color: var(--success);
   }
-  .done-title { font-weight: 600; font-size: 15px; }
-  .done-sub { margin-top: 6px; font: 12px var(--mono); color: var(--muted); }
+  .done-title { font-stretch: 112%; font-weight: 800; font-size: 20px; }
+  .done-sub { margin-top: 6px; font-size: 13px; color: var(--muted); }
   .done-sub b { color: var(--text); font-weight: 600; }
 `;
+
+// Shadow DOM resolves fonts from the page, so load Mona Sans into the document once.
+// If the host page's CSP blocks it, the overlay falls back to the system font.
+function lpLoadFont() {
+  if (document.getElementById("leetpro-font")) return;
+  const link = document.createElement("link");
+  link.id = "leetpro-font";
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Mona+Sans:wdth,wght@75..125,200..900&display=swap";
+  (document.head || document.documentElement).appendChild(link);
+}
 
 const LP_MARK = `
   <svg class="mark" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
@@ -337,6 +342,7 @@ function showFeedbackOverlay(problemData, solution) {
   const elapsed = Math.round((Date.now() - LP_PAGE_START) / 60000);
   const defaultTime = elapsed >= 1 && elapsed <= 180 ? elapsed : "";
 
+  lpLoadFont();
   const host = document.createElement("div");
   host.id = OVERLAY_ID;
   const root = host.attachShadow({ mode: "open" });
@@ -357,10 +363,10 @@ function showFeedbackOverlay(problemData, solution) {
       <header class="head">
         ${LP_MARK}
         <div class="head-main">
-          <div class="status">${LP_CHECK(12)} Accepted · auto-logged</div>
+          <div class="status">${LP_CHECK(12)} Accepted and logged</div>
           <div class="title">
-            ${difficulty ? `<span class="diff ${difficulty}" title="${difficulty}">${difficulty[0].toUpperCase()}</span>` : ""}
             ${num}<span>${lpEscape(title)}</span>
+            ${difficulty ? `<span class="diff ${difficulty}">${difficulty[0].toUpperCase() + difficulty.slice(1)}</span>` : ""}
           </div>
         </div>
         <button type="button" class="icon-btn" data-action="min" title="Minimize" aria-label="Minimize">
@@ -379,8 +385,8 @@ function showFeedbackOverlay(problemData, solution) {
 
         <section>
           <div class="label-row">
-            <span class="label">Confidence</span>
-            <span class="aside" data-conf-desc><b>${state.confidence}</b> · ${CONFIDENCE_LABELS[state.confidence]}</span>
+            <span class="label">How confident are you?</span>
+            <span class="aside" data-conf-desc>${CONFIDENCE_LABELS[state.confidence]}</span>
           </div>
           ${seg("confidence", [1, 2, 3, 4, 5].map((n) => ({ value: n, label: n })), state.confidence, "mono")}
         </section>
@@ -457,7 +463,7 @@ function showFeedbackOverlay(problemData, solution) {
     const lines = Math.max(1, code.split("\n").length);
     hl.innerHTML = lpHighlight(code, language);
     gutter.textContent = Array.from({ length: lines }, (_, i) => i + 1).join("\n");
-    meta.textContent = code ? `${langName} · ${lines} line${lines === 1 ? "" : "s"}` : langName;
+    meta.textContent = code ? `${langName}, ${lines} line${lines === 1 ? "" : "s"}` : langName;
   }
   src.value = code;
   renderCode();
@@ -497,7 +503,7 @@ function showFeedbackOverlay(problemData, solution) {
   function setConfidence(n) {
     state.confidence = n;
     setGroup("confidence", n);
-    $("[data-conf-desc]").innerHTML = `<b>${n}</b> · ${CONFIDENCE_LABELS[n]}`;
+    $("[data-conf-desc]").textContent = CONFIDENCE_LABELS[n];
   }
   root.querySelectorAll(".seg").forEach((group) => {
     group.addEventListener("click", (e) => {
@@ -570,7 +576,7 @@ function showFeedbackOverlay(problemData, solution) {
   function scheduleLabel(data) {
     if (!data?.nextReviewDate) return "";
     const days = data.reviewInterval;
-    return ` · next review <b>${days === 1 ? "tomorrow" : `in ${days} days`}</b>`;
+    return ` <span class="next">Next review <b>${days === 1 ? "tomorrow" : `in ${days} days`}</b>.</span>`;
   }
 
   function details() {
@@ -615,7 +621,7 @@ function showFeedbackOverlay(problemData, solution) {
       return false;
     }
     sync.attemptId = response.data.id;
-    setStatus(`<span class="ok">Logged</span>${scheduleLabel(response.data)}`);
+    setStatus(`<span class="ok">Logged.</span>${scheduleLabel(response.data)}`);
     return true;
   }
 
@@ -628,7 +634,7 @@ function showFeedbackOverlay(problemData, solution) {
       setStatus(errorText(response, "Couldn't save your changes."), "err");
       return false;
     }
-    setStatus(`<span class="ok">Saved</span>${scheduleLabel(response.data)}`);
+    setStatus(`<span class="ok">Saved.</span>${scheduleLabel(response.data)}`);
     return true;
   }
 
@@ -672,7 +678,7 @@ function showFeedbackOverlay(problemData, solution) {
       <div class="done" role="status">
         <div class="done-icon">${LP_CHECK(20)}</div>
         <div class="done-title">Logged${state.saveSolution && code.trim() ? " with your solution" : ""}</div>
-        <div class="done-sub">${hint.innerHTML.replace(/^.*?·\s*/, "") || "saved to your ledger"}</div>
+        <div class="done-sub">${hint.querySelector(".next")?.innerHTML.trim() || "Saved to your ledger."}</div>
       </div>`;
     $(".foot").remove();
     sync.closed = true;
