@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { limitUser } from "@/lib/rate-limit";
 import { calculateNextReview } from "@/lib/spaced-repetition";
 import { logAttemptSchema } from "@/lib/validations";
 import { headers } from "next/headers";
@@ -10,6 +11,8 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const limited = await limitUser(session.user.id, "apiWrite");
+  if (limited) return limited;
 
   const body = await request.json();
   const parsed = logAttemptSchema.safeParse(body);
@@ -91,6 +94,8 @@ export async function GET(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const limited = await limitUser(session.user.id, "apiRead");
+  if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
   const limit = parseInt(searchParams.get("limit") ?? "20");

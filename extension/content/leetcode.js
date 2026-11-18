@@ -124,26 +124,87 @@
   watchForAcceptedSubmission(problemData);
 
   function watchForAcceptedSubmission(problem) {
-    let lastShownUrl = null;
-    const observer = new MutationObserver(() => {
-      // LeetCode renders "Accepted" in a span with data-e2e-locator="submission-result"
-      // or inside an element with class containing "text-green" or "success"
-      const resultEl =
-        document.querySelector('[data-e2e-locator="submission-result"]') ||
-        document.querySelector('[class*="result_"] [class*="success"]') ||
-        document.querySelector('[class*="text-green-s"]');
+    // One overlay per submission, whichever signal sees it first.
+    const shownFor = new Set();
 
-      if (!resultEl) return;
-      const text = resultEl.textContent?.trim().toLowerCase();
-      if (text !== "accepted") return;
-
-      // Don't re-trigger for the same page
-      if (lastShownUrl === window.location.href) return;
-      lastShownUrl = window.location.href;
-
+    function trigger(key) {
+      if (!key || shownFor.has(key)) return;
+      shownFor.add(key);
+      armedUntil = 0; // this submit is handled; don't let the DOM fallback re-fire
       readEditorSolution(grabSolutionCode).then((solution) =>
         showFeedbackOverlay(problem, solution)
       );
+    }
+
+    function currentSubmissionKey() {
+      const id = window.location.pathname.match(/\/submissions\/(\d+)/)?.[1];
+      return id ?? window.location.href;
+    }
+
+    // Primary: submit-watch.js (MAIN world) reports LeetCode's judge result.
+    document.addEventListener("leetpro:accepted", (event) => {
+      let id = null;
+      try {
+        id = JSON.parse(event.detail)?.submissionId ?? null;
+      } catch {
+        id = null;
+      }
+      // Only numeric ids are real submissions (test runs use runcode_… ids).
+      if (id && /^\d+$/.test(String(id))) trigger(String(id));
+    });
+
+    // Fallback: the result panel's markup. Check every candidate rather than
+    // only the first match, and accept extra text around "Accepted".
+    const RESULT_SELECTORS = [
+      '[data-e2e-locator="submission-result"]',
+      '[class*="result_"] [class*="success"]',
+      '[class*="text-green-s"]',
+    ].join(",");
+
+    // Test-case runs show their own green "Accepted" in the console panel.
+    // Never count anything inside it.
+    const RUN_RESULT_AREA =
+      '[data-e2e-locator="console-result"], [data-layout-path*="testcase"], [data-layout-path*="test-result"]';
+
+    // Only armed for a while after the Submit button is pressed, so browsing
+    // an old accepted submission doesn't pop the overlay. Pressing Run (or
+    // its Cmd/Ctrl+' shortcut) disarms it, so a run after a failed submit
+    // can't be mistaken for an accepted one.
+    let armedUntil = 0;
+    const arm = () => (armedUntil = Date.now() + 2 * 60 * 1000);
+    const disarm = () => (armedUntil = 0);
+    document.addEventListener(
+      "click",
+      (event) => {
+        const target = event.target;
+        if (target?.closest?.('[data-e2e-locator="console-submit-button"]')) arm();
+        else if (target?.closest?.('[data-e2e-locator="console-run-button"]')) disarm();
+      },
+      true
+    );
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (!(event.metaKey || event.ctrlKey)) return;
+        if (event.key === "Enter") arm();
+        else if (event.key === "'") disarm();
+      },
+      true
+    );
+
+    const observer = new MutationObserver(() => {
+      if (Date.now() > armedUntil) return;
+      // A real submission's result lives at /problems/<slug>/submissions/<id>/.
+      if (!/\/submissions\/\d+/.test(window.location.pathname)) return;
+      const accepted = [...document.querySelectorAll(RESULT_SELECTORS)].some(
+        (el) =>
+          !el.closest(RUN_RESULT_AREA) &&
+          /^accepted\b/i.test(el.textContent?.trim() ?? "")
+      );
+      if (accepted) {
+        armedUntil = 0;
+        trigger(currentSubmissionKey());
+      }
     });
 
     observer.observe(document.body, { childList: true, subtree: true });

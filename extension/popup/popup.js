@@ -50,6 +50,8 @@ let currentProblem = null;
 function showState(name) {
   Object.values(states).forEach((el) => el.classList.add("hidden"));
   states[name].classList.remove("hidden");
+  // The account menu only makes sense while signed in and reachable.
+  if (name === "notAuth" || name === "offline") hideAccountMenu();
 }
 
 // Extract slug from a leetcode or neetcode URL
@@ -77,8 +79,27 @@ document.getElementById("attempt-form").addEventListener("submit", async (e) => 
   submitBtn.disabled = true;
   submitBtn.textContent = "Logging...";
 
+  // The server may not know this problem yet (the page loaded while signed
+  // out, or detection failed). Register it first so the attempt has an id,
+  // but only with details the content script read from the page.
+  if (!currentProblem?.id && currentProblem?.slug && !currentProblem.unverified) {
+    const detected = await new Promise((resolve) =>
+      chrome.runtime.sendMessage({ type: "PROBLEM_DETECTED", data: currentProblem }, resolve)
+    );
+    if (detected?.success && detected.data?.id) {
+      currentProblem = { ...currentProblem, id: detected.data.id };
+    }
+  }
+
+  if (!currentProblem?.id) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Log attempt";
+    alert("Couldn't log attempt: LeetPro doesn't recognise this problem yet. Refresh the problem page and try again.");
+    return;
+  }
+
   const data = {
-    problemId: currentProblem?.id,
+    problemId: currentProblem.id,
     result: document.getElementById("result").value,
     confidence: selectedConfidence,
     timeMinutes: document.getElementById("time-minutes").value
@@ -103,6 +124,98 @@ document.getElementById("attempt-form").addEventListener("submit", async (e) => 
   });
 });
 
+// Account menu (header dots): who you're signed in as, dashboard, sign out
+const menu = {
+  root: document.getElementById("account-menu"),
+  trigger: document.getElementById("menu-trigger"),
+  panel: document.getElementById("menu-panel"),
+  name: document.getElementById("menu-account-name"),
+  email: document.getElementById("menu-account-email"),
+  signOut: document.getElementById("menu-sign-out"),
+  error: document.getElementById("menu-error"),
+};
+
+function menuItems() {
+  return [...menu.panel.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+}
+
+function openMenu() {
+  menu.panel.hidden = false;
+  menu.trigger.setAttribute("aria-expanded", "true");
+  menuItems()[0]?.focus();
+}
+
+function closeMenu({ returnFocus = true } = {}) {
+  if (menu.panel.hidden) return;
+  menu.panel.hidden = true;
+  menu.trigger.setAttribute("aria-expanded", "false");
+  menu.error.hidden = true;
+  if (returnFocus) menu.trigger.focus();
+}
+
+function showAccountMenu(user) {
+  menu.name.textContent = user?.name || "";
+  menu.email.textContent = user?.email || "";
+  document.getElementById("menu-account").hidden = !user?.name && !user?.email;
+  menu.root.classList.remove("hidden");
+}
+
+function hideAccountMenu() {
+  closeMenu({ returnFocus: false });
+  menu.root.classList.add("hidden");
+}
+
+menu.trigger.addEventListener("click", () => {
+  if (menu.panel.hidden) openMenu();
+  else closeMenu();
+});
+
+menu.panel.addEventListener("keydown", (event) => {
+  const items = menuItems();
+  const index = items.indexOf(document.activeElement);
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeMenu();
+  } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    items[(index + step + items.length) % items.length]?.focus();
+  } else if (event.key === "Home" || event.key === "End") {
+    event.preventDefault();
+    items[event.key === "Home" ? 0 : items.length - 1]?.focus();
+  } else if (event.key === "Tab") {
+    closeMenu({ returnFocus: false });
+  }
+});
+
+document.addEventListener("click", (event) => {
+  if (!menu.root.contains(event.target)) closeMenu({ returnFocus: false });
+});
+
+document.getElementById("menu-dashboard").addEventListener("click", () =>
+  closeMenu({ returnFocus: false })
+);
+
+// Sign out ends the shared session, so the website is signed out too.
+menu.signOut.addEventListener("click", () => {
+  menu.signOut.disabled = true;
+  menu.signOut.textContent = "Signing out…";
+  menu.error.hidden = true;
+  chrome.runtime.sendMessage({ type: "SIGN_OUT" }, (response) => {
+    menu.signOut.disabled = false;
+    menu.signOut.textContent = "Sign out";
+    if (response?.success) {
+      hideAccountMenu();
+      currentProblem = null;
+      showState("notAuth");
+    } else {
+      menu.error.textContent = "Couldn't sign out. Check your connection and try again.";
+      menu.error.hidden = false;
+      menu.signOut.focus();
+    }
+  });
+});
+
 // Initialize popup
 async function init() {
   showState("loading");
@@ -121,6 +234,7 @@ async function init() {
       }
       return;
     }
+    showAccountMenu(authRes.user);
 
     // Get current tab URL to detect problem
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -164,13 +278,18 @@ async function init() {
         showProblemUI(storedProblem);
         document.getElementById("problem-new").classList.remove("hidden");
       } else {
-        // Fallback: we know the slug from URL but have no data
-        showProblemUI({
+        // Fallback: we only know the slug from the URL. The title and
+        // difficulty would be guesses, and problem rows are shared and never
+        // rewritten, so this one is display-only: logging asks for a refresh
+        // so the content script can read the real details from the page.
+        currentProblem = {
           title: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
           slug,
-          difficulty: "medium",
+          difficulty: "",
           topics: [],
-        });
+          unverified: true,
+        };
+        showProblemUI(currentProblem);
         document.getElementById("problem-new").classList.remove("hidden");
       }
     });

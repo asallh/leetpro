@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { limitUser } from "@/lib/rate-limit";
 import { calculateNextReview } from "@/lib/spaced-repetition";
 import { updateAttemptSchema } from "@/lib/validations";
 import { headers } from "next/headers";
@@ -15,6 +16,8 @@ export async function PATCH(
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const limited = await limitUser(session.user.id, "apiWrite");
+  if (limited) return limited;
 
   const { id } = await ctx.params;
   const parsed = updateAttemptSchema.safeParse(await request.json());

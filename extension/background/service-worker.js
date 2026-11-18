@@ -87,7 +87,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const authenticated = !!data?.session;
         if (authenticated) updateBadge();
         else chrome.action.setBadgeText({ text: "" });
-        sendResponse({ success: true, reachable: true, authenticated });
+        sendResponse({
+          success: true,
+          reachable: true,
+          authenticated,
+          // Only what the popup's account menu shows.
+          user:
+            authenticated && data.user
+              ? { name: data.user.name ?? "", email: data.user.email ?? "" }
+              : null,
+        });
       })
       .catch((err) =>
         sendResponse({
@@ -97,6 +106,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           status: err.status,
         })
       );
+    return true;
+  }
+
+  if (message.type === "SIGN_OUT") {
+    // Only our own popup may sign the user out.
+    if (sender.id !== chrome.runtime.id || sender.tab) {
+      sendResponse({ success: false, error: "Not allowed" });
+      return false;
+    }
+    apiRequest("/api/auth/sign-out", { method: "POST", body: "{}" })
+      .then(async () => {
+        await chrome.storage.local.remove("currentProblem");
+        chrome.action.setBadgeText({ text: "" });
+        sendResponse({ success: true });
+      })
+      .catch(fail(sendResponse));
     return true;
   }
 

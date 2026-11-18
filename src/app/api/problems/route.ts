@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { limitUser } from "@/lib/rate-limit";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -8,6 +9,8 @@ export async function GET(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const limited = await limitUser(session.user.id, "apiRead");
+  if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
   const difficulty = searchParams.get("difficulty");

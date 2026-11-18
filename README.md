@@ -217,7 +217,7 @@ This writes `dist/extension/` (load it unpacked to test) and `dist/leetpro-exten
 `--api-base` can also come from `LEETPRO_API_BASE`. `--version` is optional and overrides `manifest.json`. Bump it on every Web Store upload.
 
 > [!IMPORTANT]
-> Copy the extension's ID into `LEETPRO_EXTENSION_IDS` on the server. The Web Store ID stays the same after the first upload. In production the auth API rejects every `chrome-extension://` origin not on that list. Today the extension only sends `GET`s to the auth API, which Better Auth doesn't origin-check, so this only matters once the extension sends `POST`s to `/api/auth/*`.
+> Copy the extension's ID into `LEETPRO_EXTENSION_IDS` on the server. The Web Store ID stays the same after the first upload. In production the auth API rejects every `chrome-extension://` origin not on that list. The popup's **Sign out** is a `POST` to `/api/auth/sign-out`, so it fails until the ID is listed.
 
 ## Environment variables
 
