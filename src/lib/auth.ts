@@ -1,7 +1,18 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
 import { prisma } from "./db";
+import { GATE_COOKIE, gateEnabled, isValidGateToken } from "./site-gate";
+
+function readCookie(header: string | null | undefined, name: string): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(v.join("="));
+  }
+  return undefined;
+}
 
 // Only our own extension may call the auth API from a chrome-extension://
 // origin. Set LEETPRO_EXTENSION_IDS to a comma-separated list of extension IDs
@@ -46,5 +57,21 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
   trustedOrigins: extensionOrigins,
+  databaseHooks: {
+    user: {
+      create: {
+        // Second line of defense behind the proxy: while the site gate is on,
+        // only a visitor holding the gate cookie can create an account
+        // (email sign-up or first social sign-in).
+        before: async (_user, ctx) => {
+          if (!gateEnabled() || !ctx) return;
+          const cookieHeader = ctx.headers?.get("cookie") ?? ctx.request?.headers.get("cookie");
+          if (!(await isValidGateToken(readCookie(cookieHeader, GATE_COOKIE)))) {
+            throw new APIError("FORBIDDEN", { message: "Sign-up requires the site password." });
+          }
+        },
+      },
+    },
+  },
   plugins: [nextCookies()],
 });
