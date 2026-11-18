@@ -61,3 +61,4 @@ Thumbs.db
 /.claude/settings.local.json
 # gstack browser session logs
 /.gstack/
+.neon
