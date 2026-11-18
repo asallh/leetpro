@@ -16,7 +16,6 @@ export async function GET() {
     where: {
       userId: session.user.id,
       nextReviewDate: { lte: new Date() },
-      status: { not: "mastered" },
     },
     include: { problem: true },
     orderBy: { nextReviewDate: "asc" },

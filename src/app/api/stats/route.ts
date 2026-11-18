@@ -28,7 +28,6 @@ export async function GET() {
       where: {
         userId,
         nextReviewDate: { lte: new Date() },
-        status: { not: "mastered" },
       },
     }),
   ]);
