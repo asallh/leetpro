@@ -1,10 +1,10 @@
 import { getRequiredSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { DifficultyBadge } from "@/components/difficulty-badge";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatusLabel } from "@/components/page-header";
 import { RecallMeter } from "@/components/recall-meter";
 import { estimateRecall, isFading } from "@/lib/recall";
+import { topicOf } from "@/lib/dashboard-insights";
 import {
   Table,
   TableBody,
@@ -13,136 +13,188 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format, formatDistanceToNow, isToday } from "date-fns";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { format, isToday, isTomorrow } from "date-fns";
 import { Suspense } from "react";
 import Loading from "../loading";
+import { TopicFilter } from "./topic-filter";
 
-export default function ProblemsPage() {
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "review", label: "Needs review" },
+  { key: "learning", label: "Still learning" },
+  { key: "mastered", label: "Mastered" },
+] as const;
+type FilterKey = (typeof FILTERS)[number]["key"];
+
+export default function ProblemsPage(props: PageProps<"/problems">) {
   return (
     <Suspense fallback={<Loading />}>
-      <ProblemsContent />
+      <ProblemsContent searchParams={props.searchParams} />
     </Suspense>
   );
 }
 
-async function ProblemsContent() {
+async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/problems">["searchParams"] }) {
   const session = await getRequiredSession();
+  const params = await searchParams;
+  const filter: FilterKey = FILTERS.some((f) => f.key === params.show) ? (params.show as FilterKey) : "all";
+  const now = new Date();
 
   const userProblems = await prisma.userProblem.findMany({
     where: { userId: session.user.id },
     include: { problem: true },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { nextReviewDate: "asc" },
   });
 
+  const allRows = userProblems.map((up) => {
+    const recall = estimateRecall(up.lastAttemptDate, up.reviewInterval, now);
+    return { up, recall, fading: isFading(recall), topic: topicOf(up.problem) };
+  });
+  const topicCounts = new Map<string, number>();
+  for (const r of allRows) topicCounts.set(r.topic, (topicCounts.get(r.topic) ?? 0) + 1);
+  const topicOptions = [...topicCounts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const topic = typeof params.topic === "string" && topicCounts.has(params.topic) ? params.topic : "";
+  const rows = topic ? allRows.filter((r) => r.topic === topic) : allRows;
+  const matches = (key: FilterKey, r: (typeof rows)[number]) =>
+    key === "all"
+      ? true
+      : key === "review"
+        ? r.fading || (r.up.nextReviewDate != null && r.up.nextReviewDate <= now)
+        : key === "mastered"
+          ? r.up.status === "mastered"
+          : r.up.status === "learning" || r.up.status === "new_problem";
+  const shown = rows.filter((r) => matches(filter, r));
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Problems"
-        description={<>All problems you&apos;ve tracked (<span className="num">{userProblems.length}</span>)</>}
+        description="Every problem you've logged, with when you last solved it and when it comes back. Your spreadsheet, kept for you."
       />
 
       {userProblems.length === 0 ? (
-        <div className="rounded-lg border bg-card px-4 py-10 text-muted-foreground">
-          <p className="font-medium text-foreground">No problems tracked yet</p>
-          <p className="text-sm mt-1">
-            Install the Chrome extension and visit a LeetCode or NeetCode
-            problem to start tracking.
+        <div className="rounded-2xl border border-dashed bg-card px-6 py-12 text-center">
+          <p className="font-semibold">Nothing logged yet</p>
+          <p className="mx-auto mt-1 max-w-[46ch] text-muted-foreground">
+            Install the Chrome extension, then solve a problem on LeetCode or NeetCode. It lands here with its review date.
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-14">#</TableHead>
-                <TableHead>Problem</TableHead>
-                <TableHead className="w-12">Diff</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="w-32">Recall</TableHead>
-                <TableHead className="w-24">Next review</TableHead>
-                <TableHead className="w-14 text-right">Best</TableHead>
-                <TableHead className="w-14 text-right">Tries</TableHead>
-                <TableHead className="w-32">Last attempt</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {userProblems.map((up) => {
-                const recall = estimateRecall(up.lastAttemptDate, up.reviewInterval);
-                const fading = up.status !== "mastered" && isFading(recall);
-                return (
-                <TableRow key={up.id}>
-                  <TableCell className="num text-muted-foreground">
-                    {up.problem.leetcodeId ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <a
-                      href={up.problem.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium hover:underline"
-                    >
-                      {fading && <span className="mr-1 font-mono text-due-text">›</span>}
-                      {up.problem.title}
-                    </a>
-                    {up.problem.topics.length > 0 && (
-                      <div className="flex gap-1 mt-1 flex-wrap">
-                        {up.problem.topics.slice(0, 3).map((t) => (
-                          <Badge
-                            key={t}
-                            variant="outline"
-                            className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+          <nav aria-label="Filter problems" className="flex flex-wrap gap-2">
+            {FILTERS.map((f) => {
+              const count = rows.filter((r) => matches(f.key, r)).length;
+              const active = f.key === filter;
+              return (
+                <Link
+                  key={f.key}
+                  href={(() => {
+                    const q = new URLSearchParams();
+                    if (f.key !== "all") q.set("show", f.key);
+                    if (topic) q.set("topic", topic);
+                    const qs = q.toString();
+                    return qs ? `/problems?${qs}` : "/problems";
+                  })()}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "rounded-full border px-4 py-1.5 text-sm transition-colors",
+                    active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-secondary"
+                  )}
+                >
+                  {f.label} <span className={cn("num", active ? "opacity-70" : "text-muted-foreground")}>{count}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <TopicFilter topics={topicOptions} value={topic} />
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border bg-card">
+            {shown.length === 0 ? (
+              <p className="px-6 py-10 text-center text-muted-foreground">
+                No problems match{topic ? ` in ${topic}` : ""} right now.{" "}
+                <Link href="/problems" className="font-medium text-primary hover:underline">
+                  Show all problems
+                </Link>
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="pl-5">Problem</TableHead>
+                    <TableHead className="hidden md:table-cell">Topic</TableHead>
+                    <TableHead className="hidden sm:table-cell">Stage</TableHead>
+                    <TableHead>Recall</TableHead>
+                    <TableHead className="hidden lg:table-cell">Last solved</TableHead>
+                    <TableHead className="hidden text-right lg:table-cell">Tries</TableHead>
+                    <TableHead className="hidden text-right lg:table-cell">Best</TableHead>
+                    <TableHead className="pr-5 text-right">Next review</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {shown.map(({ up, recall, fading }) => {
+                    const next = up.nextReviewDate ? new Date(up.nextReviewDate) : null;
+                    const dueNow = fading || (next != null && next <= now);
+                    return (
+                      <TableRow key={up.id}>
+                        <TableCell className="py-3 pl-5">
+                          <a
+                            href={up.problem.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold hover:underline"
                           >
-                            {t}
-                          </Badge>
-                        ))}
-                        {up.problem.topics.length > 3 && (
-                          <Badge
-                            variant="outline"
-                            className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
-                          >
-                            +{up.problem.topics.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <DifficultyBadge difficulty={up.problem.difficulty} />
-                  </TableCell>
-                  <TableCell>
-                    <StatusLabel status={up.status} />
-                  </TableCell>
-                  <TableCell>
-                    <RecallMeter recall={up.status === "mastered" ? null : recall} />
-                  </TableCell>
-                  <TableCell className={fading ? "num text-xs font-bold text-due-text" : "num text-xs text-muted-foreground"}>
-                    {up.status === "mastered" || !up.nextReviewDate
-                      ? "—"
-                      : fading
-                      ? "due"
-                      : isToday(up.nextReviewDate)
-                      ? "today"
-                      : format(up.nextReviewDate, "MMM d")}
-                  </TableCell>
-                  <TableCell className="num text-right">
-                    {up.bestConfidence ? `${up.bestConfidence}/5` : "—"}
-                  </TableCell>
-                  <TableCell className="num text-right">
-                    {up.totalAttempts}
-                  </TableCell>
-                  <TableCell className="num text-xs text-muted-foreground">
-                    {up.lastAttemptDate
-                      ? formatDistanceToNow(new Date(up.lastAttemptDate), {
-                          addSuffix: true,
-                        })
-                      : "—"}
-                  </TableCell>
-                </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                            <span className={fading ? "highlight" : undefined}>{up.problem.title}</span>
+                          </a>
+                          <div className="mt-0.5 flex gap-2 text-sm">
+                            <DifficultyBadge difficulty={up.problem.difficulty} />
+                            {up.problem.leetcodeId != null && (
+                              <span className="num text-muted-foreground">#{up.problem.leetcodeId}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground md:table-cell">{topic || topicOf(up.problem)}</TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <StatusLabel status={up.status} />
+                        </TableCell>
+                        <TableCell>
+                          <RecallMeter recall={recall} />
+                        </TableCell>
+                        <TableCell className="num hidden text-muted-foreground lg:table-cell">
+                          {up.lastAttemptDate ? format(new Date(up.lastAttemptDate), "MMM d") : "—"}
+                        </TableCell>
+                        <TableCell className="num hidden text-right lg:table-cell">{up.totalAttempts}</TableCell>
+                        <TableCell className="num hidden text-right lg:table-cell">
+                          {up.bestConfidence ? `${up.bestConfidence}/5` : "—"}
+                        </TableCell>
+                        <TableCell className={cn("num pr-5 text-right", dueNow ? "font-semibold" : "text-muted-foreground")}>
+                          {!next
+                            ? "—"
+                            : dueNow
+                              ? "Now"
+                              : isToday(next)
+                                ? "Today"
+                                : isTomorrow(next)
+                                  ? "Tomorrow"
+                                  : format(next, "MMM d")}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Recall is an estimate of how well you&apos;d remember a problem today. Highlighted problems have dropped below 70%
+            and are due for review.
+          </p>
+        </>
       )}
     </div>
   );

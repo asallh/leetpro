@@ -81,25 +81,72 @@
   watchForAcceptedSubmission(problemData);
 
   function watchForAcceptedSubmission(problem) {
-    let lastShownUrl = null;
-    const observer = new MutationObserver(() => {
-      // NeetCode shows success indicators after accepted submissions
-      const resultEl =
-        document.querySelector('[class*="accepted"], [class*="success"], [class*="correct"]');
+    // Submit and Run share one result panel, and the URL doesn't change on
+    // submit, so we key each overlay by submission rather than by page.
+    let armedUntil = 0; // DOM fallback window after pressing Submit
+    let lastTriggerAt = 0;
 
-      if (!resultEl) return;
-      const text = resultEl.textContent?.trim().toLowerCase();
-      if (!text.includes("accepted") && !text.includes("correct") && !text.includes("success")) return;
-
-      if (lastShownUrl === window.location.href) return;
-      lastShownUrl = window.location.href;
-
+    function trigger() {
+      // Network and DOM signals can both see the same submission.
+      if (Date.now() - lastTriggerAt < 15000) return;
+      lastTriggerAt = Date.now();
+      armedUntil = 0;
       readEditorSolution(grabSolutionCode).then((solution) =>
         showFeedbackOverlay(problem, solution)
       );
-    });
+    }
 
+    // Primary: submit-watch.js (MAIN world) sees NeetCode's submit response.
+    // It only matches the submit function, never the Run function.
+    document.addEventListener("leetpro:accepted", () => trigger());
+
+    // Fallback: the result panel. Armed by Submit (button or Ctrl/Cmd+Enter),
+    // disarmed by Run (button or Ctrl/Cmd+'), because Run renders its own
+    // "Accepted" in the same panel.
+    const arm = () => (armedUntil = Date.now() + 2 * 60 * 1000);
+    const disarm = () => (armedUntil = 0);
+
+    document.addEventListener(
+      "click",
+      (event) => {
+        const button = event.target?.closest?.("button");
+        if (!button) return;
+        const label = button.textContent?.trim().toLowerCase();
+        if (button.classList.contains("submit-btn") || label === "submit") arm();
+        else if (label === "run") disarm();
+      },
+      true
+    );
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (!(event.metaKey || event.ctrlKey)) return;
+        if (event.key === "Enter") arm();
+        else if (event.key === "'") disarm();
+      },
+      true
+    );
+
+    const observer = new MutationObserver(() => {
+      if (Date.now() > armedUntil) return;
+      if (findAcceptedResult()) trigger();
+    });
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // An element whose own text is exactly "Accepted" (the verdict heading),
+    // ignoring buttons, the submissions history table, and test-case tabs.
+    function findAcceptedResult() {
+      const candidates = document.querySelectorAll(
+        ".submission-result-accepted, h1, h2, h3, h4, span, div, p"
+      );
+      for (const el of candidates) {
+        if (el.children.length > 0) continue;
+        if (el.textContent?.trim() !== "Accepted") continue;
+        if (el.closest("button, table, [role='tab']")) continue;
+        return el;
+      }
+      return null;
+    }
   }
 
   function grabSolutionCode() {

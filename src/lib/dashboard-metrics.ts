@@ -205,11 +205,13 @@ export function buildRecallBands(userProblems: UserProblemLike[], now: Date = ne
   };
 
   for (const up of userProblems) {
-    if (up.status === "mastered") {
+    const r = estimateRecall(up.lastAttemptDate, up.reviewInterval, now);
+    // Mastered problems still come due for a check-in; once they're fading
+    // they count as fading, not mastered.
+    if (up.status === "mastered" && (r === null || r >= DUE_RECALL)) {
       bands.mastered++;
       continue;
     }
-    const r = estimateRecall(up.lastAttemptDate, up.reviewInterval, now);
     if (r === null) bands.unknown++;
     else if (r < DUE_RECALL) bands.fading++;
     else if (r < 0.9) bands.soft++;
@@ -294,7 +296,7 @@ export function buildReviewForecast(userProblems: UserProblemLike[], now: Date =
   let dueNow = 0;
 
   for (const up of userProblems) {
-    if (!up.nextReviewDate || up.status === "mastered") continue;
+    if (!up.nextReviewDate) continue;
     const idx = Math.max(
       0,
       Math.round((startOfDay(up.nextReviewDate).getTime() - today.getTime()) / 86_400_000)

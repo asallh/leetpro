@@ -47,27 +47,33 @@ export default function SignInPage() {
       >
         <Logo />
       </Link>
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md rounded-2xl py-2 shadow-[0_16px_36px_-16px_rgba(0,0,0,0.55)]">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl font-bold tracking-[-0.03em]">Welcome back</CardTitle>
+          <CardTitle className="marker text-[1.75rem] leading-tight font-bold">Welcome back</CardTitle>
           <CardDescription>Sign in to your LeetPro account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <Button
               variant="outline"
+              size="lg"
+              className="rounded-lg"
               onClick={() => handleSocialSignIn("google")}
             >
               Google
             </Button>
             <Button
               variant="outline"
+              size="lg"
+              className="rounded-lg"
               onClick={() => handleSocialSignIn("github")}
             >
               GitHub
             </Button>
             <Button
               variant="outline"
+              size="lg"
+              className="rounded-lg"
               onClick={() => handleSocialSignIn("discord")}
             >
               Discord
@@ -78,9 +84,9 @@ export default function SignInPage() {
             <div className="absolute inset-0 flex items-center">
               <Separator className="w-full" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
+            <div className="relative flex justify-center text-sm">
               <span className="bg-card px-2 text-muted-foreground">
-                Or continue with email
+                or use your email
               </span>
             </div>
           </div>
@@ -110,14 +116,14 @@ export default function SignInPage() {
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+            <Button type="submit" size="lg" className="w-full rounded-lg" disabled={loading}>
+              {loading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/sign-up" className="underline underline-offset-4 hover:text-primary">
+            <Link href="/sign-up" className="font-medium text-primary underline-offset-4 hover:underline">
               Sign up
             </Link>
           </p>

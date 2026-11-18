@@ -74,6 +74,27 @@ model Verification {
   @@map("verification")
 }
 
+// Better Auth's rate limiter (rateLimit.storage = "database"), so limits hold
+// across instances and restarts.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt @map("last_request")
+
+  @@map("rate_limit")
+}
+
+// Fixed-window counters for the site gate and the app API (src/lib/rate-limit.ts).
+model AppRateLimit {
+  key         String   @id
+  count       Int
+  windowStart DateTime @map("window_start") @db.Timestamptz(3)
+
+  @@index([windowStart])
+  @@map("app_rate_limit")
+}
+
 // ============================================================
 // Application tables
 // ============================================================

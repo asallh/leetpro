@@ -1,7 +1,18 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
 import { prisma } from "./db";
+import { GATE_COOKIE, gateEnabled, isValidGateToken } from "./site-gate";
+
+function readCookie(header: string | null | undefined, name: string): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(v.join("="));
+  }
+  return undefined;
+}
 
 // Only our own extension may call the auth API from a chrome-extension://
 // origin. Set LEETPRO_EXTENSION_IDS to a comma-separated list of extension IDs
@@ -46,5 +57,40 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
   trustedOrigins: extensionOrigins,
+  // Keep counters in Postgres (the rate_limit table) so limits hold across
+  // instances and restarts, and stay on outside production too. Better
+  // Auth's stricter built-in rules for sign-in, sign-up and password reset
+  // still apply on top of this default.
+  rateLimit: {
+    enabled: true,
+    storage: "database",
+    window: 60,
+    max: 100,
+  },
+  advanced: {
+    ipAddress: {
+      // The header your host sets to the real client IP. Without it, a
+      // multi-hop x-forwarded-for makes every client share one bucket.
+      ...(process.env.RATE_LIMIT_IP_HEADER && {
+        ipAddressHeaders: [process.env.RATE_LIMIT_IP_HEADER],
+      }),
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // Second line of defense behind the proxy: while the site gate is on,
+        // only a visitor holding the gate cookie can create an account
+        // (email sign-up or first social sign-in).
+        before: async (_user, ctx) => {
+          if (!gateEnabled() || !ctx) return;
+          const cookieHeader = ctx.headers?.get("cookie") ?? ctx.request?.headers.get("cookie");
+          if (!(await isValidGateToken(readCookie(cookieHeader, GATE_COOKIE)))) {
+            throw new APIError("FORBIDDEN", { message: "Sign-up requires the site password." });
+          }
+        },
+      },
+    },
+  },
   plugins: [nextCookies()],
 });

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "LeetPro",
+  "name": "LeetPro (Dev)",
   "version": "1.0.0",
   "description": "Track your LeetCode and NeetCode practice with spaced repetition",
   "permissions": [
@@ -15,6 +15,17 @@
     "http://localhost:3000/*"
   ],
   "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.com/problems/*",
+        "https://neetcode.io/problems/*"
+      ],
+      "js": [
+        "content/submit-watch.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": [
         "https://leetcode.com/problems/*"

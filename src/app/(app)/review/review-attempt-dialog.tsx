@@ -26,7 +26,7 @@ export function ReviewAttemptDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>
+      <DialogTrigger render={<Button size="lg" className="rounded-lg" />}>
         Log attempt
       </DialogTrigger>
       <DialogContent>
