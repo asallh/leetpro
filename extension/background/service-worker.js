@@ -18,6 +18,8 @@ async function apiRequest(path, options = {}) {
     res = await fetch(`${API_BASE}${path}`, {
       credentials: "include",
       cache: "no-store",
+      // A stalled request must still answer the overlay (issue #15).
+      signal: AbortSignal.timeout(15000),
       ...options,
       headers: {
         ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -28,7 +30,12 @@ async function apiRequest(path, options = {}) {
     throw new ApiError(0, "Couldn't reach LeetPro");
   }
   if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`);
-  return res.json();
+  try {
+    return await res.json();
+  } catch {
+    // e.g. an HTML page from a proxy or the site gate instead of JSON
+    throw new ApiError(0, "Couldn't reach LeetPro");
+  }
 }
 
 const DEFAULT_TITLE = chrome.runtime.getManifest().name;

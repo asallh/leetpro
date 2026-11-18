@@ -565,8 +565,30 @@ function showFeedbackOverlay(problemData, solution) {
   // --- logging: create on open, then autosave edits to the same attempt ---
   const sync = { attemptId: null, creating: null, dirty: false, timer: null, closed: false };
 
+  // Always settles, so the overlay can never spin forever (issue #15). A
+  // reloaded or updated extension orphans this content script: sendMessage
+  // then throws or never answers, and only a page reload reconnects it.
+  const SEND_TIMEOUT_MS = 20000;
   function send(message) {
-    return new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
+    return new Promise((resolve) => {
+      const timer = setTimeout(
+        () => resolve({ success: false, error: "timeout" }),
+        SEND_TIMEOUT_MS
+      );
+      const done = (response) => {
+        clearTimeout(timer);
+        resolve(response);
+      };
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          const lastError = chrome.runtime.lastError;
+          if (lastError) done({ success: false, error: "disconnected" });
+          else done(response ?? { success: false, error: "disconnected" });
+        });
+      } catch {
+        done({ success: false, error: "disconnected" });
+      }
+    });
   }
 
   function setStatus(html, kind = "") {
@@ -576,6 +598,12 @@ function showFeedbackOverlay(problemData, solution) {
 
   function errorText(response, fallback) {
     const error = response?.error ?? "";
+    if (error === "disconnected") {
+      return "LeetPro was updated or reloaded. Reload this page to log your attempt.";
+    }
+    if (error === "timeout") {
+      return "LeetPro took too long to answer. Press Retry.";
+    }
     if (/401/.test(error)) {
       return `<button type="button" class="signin-link">Sign in to LeetPro</button>, then press Retry.`;
     }
@@ -678,8 +706,14 @@ function showFeedbackOverlay(problemData, solution) {
   submit = async () => {
     if (submitBtn.disabled) return;
     submitBtn.disabled = true;
-    const ok = await flush();
-    submitBtn.disabled = false;
+    let ok = false;
+    try {
+      ok = await flush();
+    } catch {
+      setStatus("Couldn't log the attempt. Press Retry.", "err");
+    } finally {
+      submitBtn.disabled = false;
+    }
     if (!ok) {
       submitBtn.textContent = "Retry";
       return;
