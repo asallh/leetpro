@@ -2,595 +2,284 @@ import { getRequiredSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
 import { DifficultyBadge } from "@/components/difficulty-badge";
 import { RecallMeter } from "@/components/recall-meter";
-import { DashboardBars, ShareRow } from "@/components/dashboard-bars";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { estimateRecall, isFading } from "@/lib/recall";
-import {
-  ACTIVITY_DAYS,
-  buildActivitySeries,
-  buildDifficultyCounts,
-  buildHelpBreakdown,
-  buildRecallBands,
-  buildResultBreakdown,
-  buildReviewForecast,
-  buildStatusCounts,
-  buildTopicPerformance,
-  buildWeeklyPerformance,
-  compareWindows,
-  computeStreak,
-  formatDelta,
-  formatMinutes,
-  formatPct,
-  summarizeAttempts,
-} from "@/lib/dashboard-metrics";
+import { buildReviewForecast } from "@/lib/dashboard-metrics";
+import { buildMemory, buildProgress, buildTopicMap } from "@/lib/dashboard-insights";
 import { recommendNextAction } from "@/lib/recommendations";
-import { RecommendedAction } from "@/components/recommended-action";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { format, formatDistanceToNow, subDays } from "date-fns";
+import { format, isToday, subDays } from "date-fns";
 import { Suspense } from "react";
 import Loading from "../loading";
 
 export default function DashboardPage() {
   return (
     <Suspense fallback={<Loading />}>
-      <DashboardContent />
+      <TodayContent />
     </Suspense>
   );
 }
 
-async function DashboardContent() {
+async function TodayContent() {
   const session = await getRequiredSession();
   const userId = session.user.id;
   const now = new Date();
-  const since90 = subDays(now, 90);
-  const since30 = subDays(now, ACTIVITY_DAYS);
-  const since14 = subDays(now, 14);
-  const since28 = subDays(now, 28);
 
-  const [userProblems, attempts90, recentAttempts, reviewDue, attemptDayRows] =
-    await Promise.all([
-      prisma.userProblem.findMany({
-        where: { userId },
-        include: { problem: true },
-      }),
-      prisma.attempt.findMany({
-        where: { userId, date: { gte: since90 } },
-        include: { problem: true },
-        orderBy: { date: "asc" },
-      }),
-      prisma.attempt.findMany({
-        where: { userId },
-        include: { problem: true },
-        orderBy: { date: "desc" },
-        take: 10,
-      }),
-      prisma.userProblem.findMany({
-        where: {
-          userId,
-          nextReviewDate: { lte: now },
-          status: { not: "mastered" },
-        },
-        include: { problem: true },
-        orderBy: { nextReviewDate: "asc" },
-        take: 8,
-      }),
-      prisma.attempt.findMany({
-        where: { userId },
-        select: { date: true },
-        orderBy: { date: "desc" },
-      }),
-    ]);
+  const [userProblems, attempts90, allAttempts] = await Promise.all([
+    prisma.userProblem.findMany({ where: { userId }, include: { problem: true } }),
+    prisma.attempt.findMany({
+      where: { userId, date: { gte: subDays(now, 90) } },
+      include: { problem: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.attempt.findMany({
+      where: { userId },
+      select: { problemId: true, date: true, confidence: true, timeMinutes: true },
+      orderBy: { date: "asc" },
+    }),
+  ]);
 
-  const recommendation = recommendNextAction({
-    userProblems,
-    attempts: attempts90,
-    now,
-  });
-
-  const attempts30 = attempts90.filter((a) => new Date(a.date) >= since30);
-  const attempts14 = attempts90.filter((a) => new Date(a.date) >= since14);
-  const attemptsPrev14 = attempts90.filter((a) => {
-    const d = new Date(a.date);
-    return d >= since28 && d < since14;
-  });
-
-  const activity = buildActivitySeries(attempts30, now);
-  const weekly = buildWeeklyPerformance(attempts90, now);
-  const results = buildResultBreakdown(attempts30);
-  const help = buildHelpBreakdown(attempts30);
-  const recallBands = buildRecallBands(userProblems, now);
-  const statuses = buildStatusCounts(userProblems);
-  const byDifficulty = buildDifficultyCounts(userProblems);
-  const weakTopics = buildTopicPerformance(attempts90);
-  const { forecast, dueNow: totalReviewDue, max: forecastMax } = buildReviewForecast(
-    userProblems,
-    now
+  const rec = recommendNextAction({ userProblems, attempts: attempts90, now });
+  const memory = buildMemory(userProblems, now);
+  const progress = buildProgress(userProblems, allAttempts, now);
+  const topics = buildTopicMap(userProblems, allAttempts, now).filter(
+    (t) => t.attempted > 0 && t.avgConfidence != null
   );
-  const streak = computeStreak(attemptDayRows.map((a) => a.date), now);
-  const summary = summarizeAttempts(attempts90, attempts30);
-  const deltas = compareWindows(attempts14, attemptsPrev14);
-  const tracked = userProblems.length;
-  const holding = recallBands.find((b) => b.key === "holding")?.count ?? 0;
-  const mastered = recallBands.find((b) => b.key === "mastered")?.count ?? 0;
-  const weeklyConfMax = Math.max(
-    1,
-    ...weekly.map((w) => (w.avgConfidence == null ? 0 : w.avgConfidence))
-  );
-  const weeklyAttemptMax = Math.max(1, ...weekly.map((w) => w.attempts));
+  const week = buildReviewForecast(userProblems, now).forecast.slice(0, 7);
+  const firstName = session.user.name?.split(" ")[0];
+
+  const tonight = [
+    ...rec.reviews.map((r) => ({
+      key: r.userProblemId,
+      action: "Review" as const,
+      title: r.problem.title,
+      url: r.problem.url,
+      difficulty: r.problem.difficulty,
+      recall: r.recall as number | null,
+      note: r.problem.topics[0] ?? "",
+    })),
+    ...rec.newProblems.slice(0, rec.reviews.length > 0 ? 1 : 3).map((n) => ({
+      key: n.problem.id,
+      action: "Start" as const,
+      title: n.problem.title,
+      url: n.problem.url,
+      difficulty: n.problem.difficulty,
+      recall: null,
+      note: `${n.topic}. ${n.reason}`,
+    })),
+  ];
+
+  const byConfidence = [...topics].sort((a, b) => (a.avgConfidence ?? 0) - (b.avgConfidence ?? 0));
+  const weakest = byConfidence.slice(0, 3);
+  // Never list a topic in both groups: strongest takes from what weakest left.
+  const strongest = byConfidence.slice(Math.max(3, byConfidence.length - 3)).reverse();
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="font-heading text-[clamp(1.75rem,3.6vw,2.75rem)] font-bold leading-[1.05] tracking-[-0.04em]">
-            {totalReviewDue > 0 ? (
-              <>
-                <span className="text-due-text">{totalReviewDue}</span>{" "}
-                {totalReviewDue === 1 ? "problem is fading" : "problems are fading"}
-              </>
-            ) : (
-              "Nothing is fading"
-            )}
-          </h1>
-          <p className="mt-2 max-w-[60ch] text-muted-foreground">
-            {totalReviewDue > 0
-              ? `Welcome back, ${session.user.name}. Estimated recall on these has dropped below 70% since you last solved them.`
-              : `Welcome back, ${session.user.name}. Everything you've tracked is holding. Solve something new or check the forecast.`}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-14">
+      <header>
+        <p className="text-lg text-muted-foreground">{firstName ? `Hi ${firstName}.` : "Hi."}</p>
+        <h1 className="marker mt-1 max-w-[22ch] text-[clamp(2.25rem,5vw,3.5rem)] leading-[1.08] font-bold tracking-[-0.02em] text-balance">
+          {memory.fading > 0 ? (
+            <>
+              <span className="highlight highlight-draw">
+                {memory.fading} {memory.fading === 1 ? "problem is" : "problems are"} fading.
+              </span>{" "}
+              Review {memory.fading === 1 ? "it" : "them"} first.
+            </>
+          ) : memory.items.length === 0 ? (
+            "Solve your first problem tonight."
+          ) : (
+            "Nothing is fading. Time for something new."
+          )}
+        </h1>
+        <p className="mt-4 max-w-[60ch] text-lg text-muted-foreground">{rec.detail.replace(/^Nothing is fading\.\s*/, "")}</p>
+      </header>
 
-      <RecommendedAction rec={recommendation} />
-
-      <section className="rounded-lg border bg-card">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-3 py-2.5">
-          <h2 className="text-sm font-semibold">Last 30 days</h2>
-          <p className="font-mono text-xs text-muted-foreground">
-            {activity.total} attempt{activity.total !== 1 ? "s" : ""} · {activity.activeDays}{" "}
-            active day{activity.activeDays !== 1 ? "s" : ""} · streak {streak}
-          </p>
-        </div>
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="space-y-3 border-b p-4 lg:border-b-0 lg:border-r">
-            <div className="flex items-baseline justify-between gap-2">
-              <h3 className="text-xs font-medium text-muted-foreground">Attempts per day</h3>
-              <span className="font-mono text-[10px] text-muted-foreground">
-                vs prior 14d {formatDelta(deltas.attemptDelta, 0)}
-              </span>
-            </div>
-            {activity.total === 0 ? (
-              <p className="py-8 text-sm text-muted-foreground">
-                No attempts in the last 30 days. Solve with the extension installed and the
-                series fills in.
-              </p>
-            ) : (
-              <DashboardBars
-                heightClass="h-32"
-                max={activity.max}
-                ariaLabel={activity.series
-                  .map((s) => `${format(s.day, "MMM d")}: ${s.count}`)
-                  .join(", ")}
-                bars={activity.series.map((s, i) => ({
-                  key: String(s.day.getTime()),
-                  value: s.count,
-                  label:
-                    i === 0 || i === activity.series.length - 1 || s.day.getDate() === 1
-                      ? format(s.day, "d")
-                      : "",
-                  emphasize: i === activity.series.length - 1,
-                  title: `${format(s.day, "EEE MMM d")}: ${s.count} attempt${
-                    s.count !== 1 ? "s" : ""
-                  }${
-                    s.avgConfidence != null
-                      ? ` · avg confidence ${s.avgConfidence.toFixed(1)}`
-                      : ""
-                  }`,
-                }))}
-              />
-            )}
-          </div>
-          <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2.5 p-4 text-sm content-start">
-            <dt className="text-muted-foreground">Avg confidence</dt>
-            <dd className="num text-right">
-              {summary.avgConfidence == null ? "—" : summary.avgConfidence.toFixed(1)}
-              <span className="ml-2 text-xs text-muted-foreground">
-                {formatDelta(deltas.confidenceDelta, 1)}
-              </span>
-            </dd>
-            <dt className="text-muted-foreground">Independence</dt>
-            <dd className="num text-right">
-              {formatPct(summary.independenceRate)}
-              <span className="ml-2 text-xs text-muted-foreground">
-                {deltas.independenceDelta == null
-                  ? "—"
-                  : formatDelta(deltas.independenceDelta * 100, 0, "pp")}
-              </span>
-            </dd>
-            <dt className="text-muted-foreground">Avg time / attempt</dt>
-            <dd className="num text-right">{formatMinutes(summary.avgTimeMinutes)}</dd>
-            <dt className="text-muted-foreground">Time logged (90d)</dt>
-            <dd className="num text-right">{formatMinutes(summary.totalTimeMinutes)}</dd>
-            <dt className="text-muted-foreground">Tracked · holding</dt>
-            <dd className="num text-right">
-              {tracked} · {holding}
-            </dd>
-            <dt className="text-muted-foreground">Mastered</dt>
-            <dd className="num text-right">{mastered}</dd>
-            <dt className="text-muted-foreground">Practice streak</dt>
-            <dd className="num text-right">
-              {streak} day{streak !== 1 ? "s" : ""}
-            </dd>
-          </dl>
-        </div>
-      </section>
-
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0 space-y-6">
-          <section className="rounded-lg border bg-card">
-            <h2 className="border-b px-3 py-2.5 text-sm font-semibold">
-              Performance by week
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                last 8 weeks
-              </span>
-            </h2>
-            <div className="grid gap-4 border-b p-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <h3 className="text-xs text-muted-foreground">Attempts</h3>
-                <DashboardBars
-                  heightClass="h-24"
-                  max={weeklyAttemptMax}
-                  ariaLabel={weekly
-                    .map((w) => `${w.label}: ${w.attempts} attempts`)
-                    .join(", ")}
-                  bars={weekly.map((w, i) => ({
-                    key: w.label,
-                    value: w.attempts,
-                    label: format(w.weekStart, "M/d"),
-                    topLabel: w.attempts > 0 ? String(w.attempts) : "",
-                    emphasize: i === weekly.length - 1,
-                  }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xs text-muted-foreground">Avg confidence (1–5)</h3>
-                <DashboardBars
-                  heightClass="h-24"
-                  max={weeklyConfMax}
-                  ariaLabel={weekly
-                    .map(
-                      (w) =>
-                        `${w.label}: ${
-                          w.avgConfidence == null ? "none" : w.avgConfidence.toFixed(1)
-                        }`
-                    )
-                    .join(", ")}
-                  bars={weekly.map((w, i) => ({
-                    key: `c-${w.label}`,
-                    value: w.avgConfidence ?? 0,
-                    label: format(w.weekStart, "M/d"),
-                    topLabel:
-                      w.avgConfidence == null ? "" : w.avgConfidence.toFixed(1),
-                    emphasize: i === weekly.length - 1,
-                    title:
-                      w.avgConfidence == null
-                        ? `${w.label}: no attempts`
-                        : `${w.label}: ${w.avgConfidence.toFixed(1)} avg · ${formatPct(
-                            w.independenceRate
-                          )} independent`,
-                  }))}
-                />
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Week</TableHead>
-                    <TableHead className="text-right">Attempts</TableHead>
-                    <TableHead className="text-right">Conf</TableHead>
-                    <TableHead className="text-right">Indep.</TableHead>
-                    <TableHead className="text-right">Avg time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {weekly.every((w) => w.attempts === 0) ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-muted-foreground">
-                        Weekly averages appear once you log attempts.
-                      </TableCell>
-                    </TableRow>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-14 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        {/* Tonight */}
+        <section aria-labelledby="tonight">
+          <h2 id="tonight" className="mb-4 text-xl font-semibold">
+            Tonight
+          </h2>
+          {tonight.length === 0 ? (
+            <p className="text-muted-foreground">
+              You&apos;ve tracked every problem in the catalog. Keep up with reviews as they come due.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-2xl border bg-card shadow-[0_16px_36px_-16px_rgba(0,0,0,0.55)]">
+              {tonight.map((t, i) => (
+                <li key={t.key} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 sm:px-6">
+                  <div className="min-w-0 flex-1 basis-64">
+                    <p className="text-[1.0625rem] font-semibold">
+                      <span className={t.action === "Review" ? "highlight" : undefined}>{t.title}</span>
+                    </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+                      <DifficultyBadge difficulty={t.difficulty} />
+                      <span className="truncate">{t.note}</span>
+                    </p>
+                  </div>
+                  {t.recall != null ? (
+                    <RecallMeter recall={t.recall} />
                   ) : (
-                    [...weekly].reverse().map((w) => (
-                      <TableRow key={w.label}>
-                        <TableCell className="font-medium">
-                          {format(w.weekStart, "MMM d")}
-                        </TableCell>
-                        <TableCell className="num text-right">{w.attempts}</TableCell>
-                        <TableCell className="num text-right">
-                          {w.avgConfidence == null ? "—" : w.avgConfidence.toFixed(1)}
-                        </TableCell>
-                        <TableCell className="num text-right">
-                          {formatPct(w.independenceRate)}
-                        </TableCell>
-                        <TableCell className="num text-right text-muted-foreground">
-                          {formatMinutes(w.avgTimeMinutes)}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    <span className="text-sm text-muted-foreground">New problem</span>
                   )}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
-
-          <section className="rounded-lg border bg-card">
-            <h2 className="border-b px-3 py-2.5 text-sm font-semibold">
-              Weak topics
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                lowest avg confidence · 90 days · ≥2 attempts
-              </span>
-            </h2>
-            {weakTopics.length === 0 ? (
-              <p className="px-3 py-6 text-sm text-muted-foreground">
-                Topic strength shows up after a few tagged attempts. Keep logging result and
-                confidence.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Topic</TableHead>
-                    <TableHead className="w-16 text-right">n</TableHead>
-                    <TableHead className="w-16 text-right">Conf</TableHead>
-                    <TableHead className="w-20 text-right">Indep.</TableHead>
-                    <TableHead className="w-20 text-right">Help</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {weakTopics.map((t) => (
-                    <TableRow key={t.topic}>
-                      <TableCell className="font-medium">{t.topic}</TableCell>
-                      <TableCell className="num text-right text-muted-foreground">
-                        {t.attempts}
-                      </TableCell>
-                      <TableCell className="num text-right">
-                        {t.avgConfidence.toFixed(1)}
-                      </TableCell>
-                      <TableCell className="num text-right">
-                        {formatPct(t.independenceRate)}
-                      </TableCell>
-                      <TableCell className="num text-right text-muted-foreground">
-                        {formatPct(t.helpRate)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </section>
-
-          <section className="rounded-lg border bg-card">
-            <h2 className="border-b px-3 py-2.5 text-sm font-semibold">Review queue</h2>
-            {reviewDue.length === 0 ? (
-              <p className="px-3 py-6 text-sm text-muted-foreground">
-                No reviews due. Problems show up here when their estimated recall drops below
-                70%.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-14">#</TableHead>
-                    <TableHead>Problem</TableHead>
-                    <TableHead className="w-12">Diff</TableHead>
-                    <TableHead className="w-32">Recall</TableHead>
-                    <TableHead className="w-16" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reviewDue.map((up) => {
-                    const r = estimateRecall(up.lastAttemptDate, up.reviewInterval, now);
-                    return (
-                      <TableRow key={up.id}>
-                        <TableCell className="num text-muted-foreground">
-                          {up.problem.leetcodeId ?? "—"}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {isFading(r) && (
-                            <span className="mr-1 font-mono text-due-text">›</span>
-                          )}
-                          {up.problem.title}
-                        </TableCell>
-                        <TableCell>
-                          <DifficultyBadge difficulty={up.problem.difficulty} />
-                        </TableCell>
-                        <TableCell>
-                          <RecallMeter recall={r} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <a
-                            href={up.problem.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cn(buttonVariants({ size: "sm", variant: "ghost" }))}
-                          >
-                            Open
-                          </a>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-            {totalReviewDue > reviewDue.length && (
-              <div className="border-t px-3 py-2 text-right">
-                <Link
-                  href="/review"
-                  className="font-mono text-xs text-muted-foreground hover:text-foreground"
-                >
-                  +{totalReviewDue - reviewDue.length} more in the review queue
-                </Link>
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-lg border bg-card">
-            <h2 className="border-b px-3 py-2.5 text-sm font-semibold">Recent activity</h2>
-            {recentAttempts.length === 0 ? (
-              <p className="px-3 py-6 text-sm text-muted-foreground">
-                No attempts yet. Solve a problem on LeetCode or NeetCode with the extension
-                installed and it will appear here.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-28">When</TableHead>
-                    <TableHead>Problem</TableHead>
-                    <TableHead className="w-12">Diff</TableHead>
-                    <TableHead className="w-24">Result</TableHead>
-                    <TableHead className="w-16 text-right">Conf</TableHead>
-                    <TableHead className="w-16 text-right">Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentAttempts.map((attempt) => (
-                    <TableRow key={attempt.id}>
-                      <TableCell className="num text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(attempt.date), { addSuffix: true })}
-                      </TableCell>
-                      <TableCell className="font-medium">{attempt.problem.title}</TableCell>
-                      <TableCell>
-                        <DifficultyBadge difficulty={attempt.problem.difficulty} />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {attempt.result === "solved_independently"
-                          ? "Independent"
-                          : attempt.result === "solved_with_hint"
-                            ? "Hint"
-                            : attempt.result === "needed_solution"
-                              ? "Solution"
-                              : "Stuck"}
-                      </TableCell>
-                      <TableCell className="num text-right">{attempt.confidence}/5</TableCell>
-                      <TableCell className="num text-right text-muted-foreground">
-                        {attempt.timeMinutes ? `${attempt.timeMinutes}m` : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </section>
-        </div>
-
-        <aside className="space-y-4">
-          <section className="space-y-3 rounded-lg border bg-card p-4">
-            <h2 className="flex items-baseline justify-between text-sm font-semibold">
-              Next 14 days
-              <span className="text-xs font-normal text-muted-foreground">reviews / day</span>
-            </h2>
-            <DashboardBars
-              max={forecastMax}
-              ariaLabel={forecast
-                .map((f) => `${format(f.day, "EEE d")}: ${f.count}`)
-                .join(", ")}
-              bars={forecast.map((f, i) => ({
-                key: String(i),
-                value: f.count,
-                label: format(f.day, "EEEEE"),
-                topLabel: String(f.count),
-                emphasize: i === 0,
-              }))}
-            />
-          </section>
-
-          <section className="space-y-3 rounded-lg border bg-card p-4">
-            <h2 className="text-sm font-semibold">Memory health</h2>
-            <div className="space-y-3">
-              {recallBands.map((b) => (
-                <ShareRow
-                  key={b.key}
-                  label={b.label}
-                  count={b.count}
-                  share={b.share}
-                  emphasize={b.due && b.count > 0}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3 rounded-lg border bg-card p-4">
-            <h2 className="text-sm font-semibold">
-              How you solved
-              <span className="ml-2 text-xs font-normal text-muted-foreground">30d</span>
-            </h2>
-            <div className="space-y-3">
-              {results.map((r) => (
-                <ShareRow
-                  key={r.key}
-                  label={r.label}
-                  count={r.count}
-                  share={r.share}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3 rounded-lg border bg-card p-4">
-            <h2 className="text-sm font-semibold">
-              Help used
-              <span className="ml-2 text-xs font-normal text-muted-foreground">30d</span>
-            </h2>
-            <div className="space-y-3">
-              {help.map((h) => (
-                <ShareRow key={h.key} label={h.label} count={h.count} share={h.share} />
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3 rounded-lg border bg-card p-4">
-            <h2 className="text-sm font-semibold">Scheduler status</h2>
-            <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 text-sm">
-              {statuses.map((s) => (
-                <div key={s.key} className="contents">
-                  <dt
-                    className={
-                      s.key === "mastered" ? "text-success" : "text-muted-foreground"
-                    }
+                  <a
+                    href={t.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      buttonVariants({ variant: i === 0 ? "default" : "outline", size: "lg" }),
+                      "w-24 rounded-lg"
+                    )}
                   >
-                    {s.label}
-                  </dt>
-                  <dd className="num text-right">{s.count}</dd>
-                </div>
+                    {t.action}
+                    <span className="sr-only"> {t.title} on LeetCode</span>
+                  </a>
+                </li>
               ))}
-            </dl>
-            {tracked > 0 && (
-              <>
-                <div className="flex h-2 gap-0.5 overflow-hidden rounded-sm" aria-hidden="true">
-                  <span className="bg-foreground/25" style={{ flex: byDifficulty.easy }} />
-                  <span className="bg-foreground/55" style={{ flex: byDifficulty.medium }} />
-                  <span className="bg-foreground" style={{ flex: byDifficulty.hard }} />
+            </ul>
+          )}
+          {rec.reviewsRemaining > 0 && (
+            <Link href="/review" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
+              {rec.reviewsRemaining} more {rec.reviewsRemaining === 1 ? "review" : "reviews"} waiting
+            </Link>
+          )}
+        </section>
+
+        {/* This week */}
+        <section aria-labelledby="week">
+          <h2 id="week" className="mb-1 text-xl font-semibold">
+            This week
+          </h2>
+          <p className="mb-4 text-sm text-muted-foreground">Reviews coming due each day.</p>
+          <ol className="grid grid-cols-7 gap-1.5">
+            {week.map((d) => {
+              const today = isToday(d.day);
+              return (
+                <li
+                  key={d.day.toISOString()}
+                  className={cn(
+                    "flex flex-col items-center rounded-xl py-3",
+                    today ? "bg-card ring-1 ring-border" : ""
+                  )}
+                  aria-label={`${format(d.day, "EEEE")}: ${d.count} ${d.count === 1 ? "review" : "reviews"}`}
+                >
+                  <span className={cn("text-xs", today ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                    {today ? "Today" : format(d.day, "EEE")}
+                  </span>
+                  <span
+                    className={cn(
+                      "marker num mt-1.5 text-2xl font-bold",
+                      d.count === 0 && "text-faint",
+                      d.count > 0 && today && "highlight"
+                    )}
+                  >
+                    {d.count}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+          {memory.items.length > 0 && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Average recall across your problems is{" "}
+              <span className="font-semibold text-foreground">{Math.round((memory.averageRecall ?? 0) * 100)}%</span>.
+            </p>
+          )}
+        </section>
+
+        {/* Progress */}
+        <section aria-labelledby="progress">
+          <h2 id="progress" className="mb-1 text-xl font-semibold">
+            Progress
+          </h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            {progress.solved} solved out of {progress.attempted} tried
+            {progress.perWeek > 0 ? `, about ${progress.perWeek.toFixed(1)} new problems a week lately` : ""}.
+          </p>
+          <ul className="space-y-6">
+            {progress.lists.map((l) => (
+              <li key={l.name}>
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-semibold">{l.name}</span>
+                  <span className="num text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">{l.solved}</span> of {l.total}
+                  </span>
                 </div>
-                <p className="font-mono text-xs text-muted-foreground">
-                  E {byDifficulty.easy} · M {byDifficulty.medium} · H {byDifficulty.hard}
+                <div
+                  className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-secondary"
+                  role="img"
+                  aria-label={`${l.solved} of ${l.total} solved, ${l.attempted - l.solved} more tried`}
+                >
+                  <span className="bg-remembered" style={{ width: `${(l.solved / l.total) * 100}%` }} />
+                  <span className="bg-remembered/30" style={{ width: `${((l.attempted - l.solved) / l.total) * 100}%` }} />
+                </div>
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {l.solved >= l.total
+                    ? "Finished."
+                    : l.finishDate
+                      ? `At your pace you'll finish around ${format(l.finishDate, "MMMM d")}.`
+                      : "Solve a few new problems to see a finish date."}
                 </p>
-              </>
-            )}
-          </section>
-        </aside>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Topics */}
+        <section aria-labelledby="topics">
+          <h2 id="topics" className="mb-1 text-xl font-semibold">
+            Topics
+          </h2>
+          <p className="mb-6 text-sm text-muted-foreground">Average confidence across your attempts, out of 5.</p>
+          {topics.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Your strongest and weakest topics show up after a few attempts.</p>
+          ) : (
+            <div className="space-y-6">
+              {topics.length > 3 ? (
+                <>
+                  <TopicGroup title="Needs work" rows={weakest} />
+                  <TopicGroup title="Strongest" rows={strongest} />
+                </>
+              ) : (
+                <TopicGroup title="Started so far" rows={weakest} />
+              )}
+            </div>
+          )}
+          <Link href="/lists" className="mt-6 inline-block text-sm font-medium text-primary hover:underline">
+            See every topic
+          </Link>
+        </section>
       </div>
     </div>
   );
 }
 
+function TopicGroup({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: { topic: string; avgConfidence: number | null; solved: number; cells: unknown[]; fading: number }[];
+}) {
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-medium text-muted-foreground">{title}</h3>
+      <ul className="space-y-2.5">
+        {rows.map((t) => (
+          <li key={t.topic} className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate">
+              <span className={t.fading > 0 ? "highlight" : undefined}>{t.topic}</span>
+            </span>
+            <span className="num shrink-0 text-sm">
+              <span className={cn("font-semibold", (t.avgConfidence ?? 0) < 3 ? "text-destructive" : "text-foreground")}>
+                {t.avgConfidence?.toFixed(1)}
+              </span>
+              <span className="text-muted-foreground">, {t.solved} of {t.cells.length} solved</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

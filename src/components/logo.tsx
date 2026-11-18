@@ -30,7 +30,7 @@ export function Logo({
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <LogoMark className={markClassName} />
-      <span className="font-heading font-bold tracking-[-0.04em]">
+      <span className="font-mono font-bold tracking-[-0.04em]">
         Leet<span className="text-due-text">Pro</span>
       </span>
     </span>

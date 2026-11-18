@@ -26,7 +26,7 @@ export function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="outline-none">
+      <DropdownMenuTrigger aria-label="Account menu">
         <Avatar className="h-8 w-8">
           <AvatarImage src={session.user.image ?? undefined} />
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>

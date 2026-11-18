@@ -89,18 +89,19 @@ export function AttemptForm({ problemId, onSuccess }: AttemptFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label>Confidence (1-5)</Label>
+        <Label>How confident are you? (1–5)</Label>
         <div className="flex gap-2">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
               onClick={() => setConfidence(n)}
+              aria-pressed={confidence === n}
               className={cn(
-                "h-10 w-10 rounded-md border font-mono text-sm font-medium transition-colors",
+                "num h-10 w-10 rounded-lg border text-base font-semibold transition-colors",
                 confidence === n
-                  ? "border-foreground bg-foreground text-background"
-                  : "hover:bg-accent"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-card hover:bg-secondary"
               )}
             >
               {n}
@@ -156,8 +157,8 @@ export function AttemptForm({ problemId, onSuccess }: AttemptFormProps) {
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Logging..." : "Log attempt"}
+      <Button type="submit" size="lg" className="w-full rounded-lg" disabled={loading}>
+        {loading ? "Logging attempt…" : "Log attempt"}
       </Button>
     </form>
   );
