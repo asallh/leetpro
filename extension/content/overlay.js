@@ -277,6 +277,10 @@ const LP_STYLES = `
   .hint b { color: var(--text); font-weight: 600; }
   .hint .ok { color: var(--success); font-weight: 600; }
   .hint.err { color: var(--error); }
+  .hint .signin-link {
+    background: none; border: 0; padding: 0; font: inherit; font-weight: 600;
+    color: var(--text); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  }
   kbd {
     display: inline-block; min-width: 18px; padding: 1px 4px; margin-right: 2px; text-align: center;
     border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px;
@@ -553,6 +557,10 @@ function showFeedbackOverlay(problemData, solution) {
   card.addEventListener("keyup", (e) => e.stopPropagation());
   card.addEventListener("keypress", (e) => e.stopPropagation());
   submitBtn.addEventListener("click", () => submit());
+  // Content scripts can't open tabs; the service worker opens the sign-in page.
+  hint.addEventListener("click", (e) => {
+    if (e.target.closest(".signin-link")) chrome.runtime.sendMessage({ type: "OPEN_SIGN_IN" });
+  });
 
   // --- logging: create on open, then autosave edits to the same attempt ---
   const sync = { attemptId: null, creating: null, dirty: false, timer: null, closed: false };
@@ -568,7 +576,9 @@ function showFeedbackOverlay(problemData, solution) {
 
   function errorText(response, fallback) {
     const error = response?.error ?? "";
-    if (/401/.test(error)) return "Sign in to LeetPro, then press Retry.";
+    if (/401/.test(error)) {
+      return `<button type="button" class="signin-link">Sign in to LeetPro</button>, then press Retry.`;
+    }
     const status = error.match(/API (\d{3})/)?.[1];
     return status ? `${fallback} (server ${status})` : fallback;
   }

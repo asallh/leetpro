@@ -31,6 +31,20 @@ async function apiRequest(path, options = {}) {
   return res.json();
 }
 
+const DEFAULT_TITLE = chrome.runtime.getManifest().name;
+
+// Signed out: an amber "!" on the toolbar icon, so a new install doesn't sit
+// there silently until the first accepted submission fails to log.
+function showSignedOut() {
+  chrome.action.setBadgeText({ text: "!" });
+  chrome.action.setBadgeBackgroundColor({ color: "#F59E0B" });
+  chrome.action.setTitle({ title: `${DEFAULT_TITLE}: sign in to start tracking` });
+}
+
+function openSignIn() {
+  return chrome.tabs.create({ url: `${API_BASE}/sign-in` });
+}
+
 function fail(sendResponse) {
   return (err) =>
     sendResponse({ success: false, status: err.status ?? 0, error: err.message });
@@ -87,7 +101,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then((data) => {
         const authenticated = !!data?.session;
         if (authenticated) updateBadge();
-        else chrome.action.setBadgeText({ text: "" });
+        else showSignedOut();
         sendResponse({
           success: true,
           reachable: true,
@@ -119,11 +133,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     apiRequest("/api/auth/sign-out", { method: "POST", body: "{}" })
       .then(async () => {
         await chrome.storage.local.remove("currentProblem");
-        chrome.action.setBadgeText({ text: "" });
+        showSignedOut();
         sendResponse({ success: true });
       })
       .catch(fail(sendResponse));
     return true;
+  }
+
+  if (message.type === "OPEN_SIGN_IN") {
+    // From the overlay's "Sign in" link; content scripts can't open tabs.
+    if (sender.id !== chrome.runtime.id) return false;
+    openSignIn();
+    return false;
   }
 
   if (message.type === "GET_CONFIG") {
@@ -137,14 +158,16 @@ async function updateBadge() {
   try {
     const stats = await apiRequest("/api/stats");
     const count = stats.reviewDueCount;
+    chrome.action.setTitle({ title: DEFAULT_TITLE });
     if (count > 0) {
       chrome.action.setBadgeText({ text: String(count) });
       chrome.action.setBadgeBackgroundColor({ color: "#ef4444" });
     } else {
       chrome.action.setBadgeText({ text: "" });
     }
-  } catch {
-    chrome.action.setBadgeText({ text: "" });
+  } catch (err) {
+    if (err.status === 401) showSignedOut();
+    else chrome.action.setBadgeText({ text: "" });
   }
 }
 
@@ -155,7 +178,18 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 // Also update on install/startup
-chrome.runtime.onInstalled.addListener(() => updateBadge());
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  updateBadge();
+  // First install: send a new user straight to sign-in instead of leaving
+  // them to discover it in the popup.
+  if (reason !== "install") return;
+  try {
+    const session = await apiRequest("/api/auth/get-session");
+    if (!session?.session) openSignIn();
+  } catch (err) {
+    if (err.status === 401) openSignIn();
+  }
+});
 chrome.runtime.onStartup.addListener(() => updateBadge());
 
 // Grey out the icon on sites that aren't leetcode or neetcode
@@ -229,7 +263,7 @@ function updateIcon(tabId, url) {
 if (IS_DEV) {
   // Default icon for tabs that haven't fired an update yet.
   setIcon({}, "");
-  chrome.action.setTitle({ title: "LeetPro (Dev)" });
+  chrome.action.setTitle({ title: DEFAULT_TITLE });
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
