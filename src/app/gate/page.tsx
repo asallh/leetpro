@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
   gateEnabled,
   safeNextPath,
 } from "@/lib/site-gate";
+import { RATE_RULES, clientIp, consumeRateLimit } from "@/lib/rate-limit";
 
 export const metadata: Metadata = {
   title: "Private preview · LeetPro",
@@ -24,6 +25,15 @@ async function unlock(formData: FormData) {
   "use server";
   const next = safeNextPath(formData.get("next"));
   const password = formData.get("password");
+
+  const h = await headers();
+  const [perIp, global] = await Promise.all([
+    consumeRateLimit(`gate:ip:${clientIp(h)}`, RATE_RULES.gateIp),
+    consumeRateLimit("gate:global", RATE_RULES.gateGlobal),
+  ]);
+  if (!perIp.allowed || !global.allowed) {
+    redirect(`/gate?error=rate&next=${encodeURIComponent(next)}`);
+  }
 
   if (typeof password !== "string" || !(await checkGatePassword(password))) {
     // Small fixed delay to make online guessing slower.
@@ -81,7 +91,9 @@ export default async function GatePage({
             </div>
             {error && (
               <p id="gate-error" role="alert" className="text-sm text-destructive">
-                That password isn&apos;t right.
+                {error === "rate"
+                  ? "Too many attempts. Try again in a few minutes."
+                  : "That password isn't right."}
               </p>
             )}
             <Button type="submit" className="w-full">

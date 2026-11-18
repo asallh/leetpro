@@ -57,6 +57,25 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
   trustedOrigins: extensionOrigins,
+  // Keep counters in Postgres (the rate_limit table) so limits hold across
+  // instances and restarts, and stay on outside production too. Better
+  // Auth's stricter built-in rules for sign-in, sign-up and password reset
+  // still apply on top of this default.
+  rateLimit: {
+    enabled: true,
+    storage: "database",
+    window: 60,
+    max: 100,
+  },
+  advanced: {
+    ipAddress: {
+      // The header your host sets to the real client IP. Without it, a
+      // multi-hop x-forwarded-for makes every client share one bucket.
+      ...(process.env.RATE_LIMIT_IP_HEADER && {
+        ipAddressHeaders: [process.env.RATE_LIMIT_IP_HEADER],
+      }),
+    },
+  },
   databaseHooks: {
     user: {
       create: {

@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { limitUser } from "@/lib/rate-limit";
 import { detectProblemSchema } from "@/lib/validations";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -9,6 +10,8 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const limited = await limitUser(session.user.id, "apiWrite");
+  if (limited) return limited;
 
   const body = await request.json();
   const parsed = detectProblemSchema.safeParse(body);
