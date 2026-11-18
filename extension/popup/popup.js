@@ -30,6 +30,9 @@ const STATUS_LABELS = {
 };
 
 const API_BASE = self.LEETPRO_CONFIG.apiBase.replace(/\/+$/, "");
+const IS_DEV = (self.LEETPRO_CONFIG.env ?? "").toLowerCase() !== "prod";
+
+document.getElementById("dev-pill").hidden = !IS_DEV;
 
 // Links open the configured app in a new tab (and close the popup), so dev
 // and production builds never point at the wrong host.
