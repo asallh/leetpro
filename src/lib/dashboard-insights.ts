@@ -4,7 +4,7 @@ import { BLIND_75, GRIND_75, NEETCODE_150_IDS } from "@/lib/data/problem-lists";
 import { TOPICS } from "@/lib/data/topics";
 import { estimateRecall, isFading } from "@/lib/recall";
 
-/** Same rule as the Lists page: a problem counts as solved at best confidence 3+. */
+/** Same rule as the Problem Sets page: a problem counts as solved at best confidence 3+. */
 export const SOLVED_CONFIDENCE = 3;
 
 type ProblemRef = { leetcodeId: number | null; topics: string[]; title: string };
