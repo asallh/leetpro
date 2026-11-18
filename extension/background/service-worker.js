@@ -64,8 +64,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "CHECK_AUTH") {
     apiRequest("/api/auth/get-session")
-      .then((data) => sendResponse({ success: true, authenticated: !!data }))
+      .then((data) =>
+        sendResponse({
+          success: true,
+          authenticated: !!data,
+          // Only what the popup's account menu shows.
+          user: data?.user ? { name: data.user.name ?? "", email: data.user.email ?? "" } : null,
+        })
+      )
       .catch(() => sendResponse({ success: false, authenticated: false }));
+    return true;
+  }
+
+  if (message.type === "SIGN_OUT") {
+    // Only our own popup may sign the user out.
+    if (sender.id !== chrome.runtime.id || sender.tab) {
+      sendResponse({ success: false, error: "Not allowed" });
+      return false;
+    }
+    apiRequest("/api/auth/sign-out", { method: "POST", body: "{}" })
+      .then(async () => {
+        await chrome.storage.local.remove("currentProblem");
+        chrome.action.setBadgeText({ text: "" });
+        sendResponse({ success: true });
+      })
+      .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
