@@ -7,7 +7,11 @@ export async function getRequiredSession() {
     headers: await headers(),
   });
   if (!session) {
-    redirect("/sign-in");
+    // `expired` tells the proxy not to bounce this request back to the
+    // dashboard: the browser still holds a session cookie, but the session
+    // behind it is gone (expired, signed out elsewhere, or the database was
+    // reset). Without it the two redirects loop forever.
+    redirect("/sign-in?expired=1");
   }
   return session;
 }
