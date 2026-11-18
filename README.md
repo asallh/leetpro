@@ -193,17 +193,31 @@ Open [http://localhost:3000](http://localhost:3000) and create an account.
 
 ## Chrome extension
 
-The extension lives in [`extension/`](extension/) and needs no build step.
+The extension lives in [`extension/`](extension/). For local development it needs no build step.
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and select the `extension/` folder.
-3. Pin LeetPro to the toolbar and sign in from the popup.
+3. Pin LeetPro to the toolbar. If you aren't signed in, the popup links to the sign-in page.
 4. Solve a problem on LeetCode or NeetCode. When the submission is accepted, the overlay opens so you can log it.
 
-The extension talks to `http://localhost:3000` by default. The API base URL is stored in `chrome.storage.local` under `leetpro_api_base`, so it can point at a deployed instance. When pointing it at production, add that origin to `host_permissions` in [`manifest.json`](extension/manifest.json).
+The extension has no sign-in form of its own. It reuses the web app's session cookie, so signing in on the site signs in the extension too. The checked-in [`extension/config.js`](extension/config.js) points at `http://localhost:3000`.
+
+### Building for production
+
+```bash
+pnpm extension:build --api-base https://your-domain.com --version 1.0.1
+```
+
+This writes `dist/extension/` (load it unpacked to test) and `dist/leetpro-extension-<version>.zip` (upload it to the Chrome Web Store). The script:
+
+- writes `config.js` with the deployed origin, which the popup links and every API call use
+- replaces the `localhost` host permission with `https://your-domain.com/*`, so Chrome sends the session cookie and the requests skip CORS
+- refuses non-HTTPS origins, URLs with a path, leftover `localhost` references, and manifest entries that point at missing files
+
+`--api-base` can also come from `LEETPRO_API_BASE`. `--version` is optional and overrides `manifest.json`. Bump it on every Web Store upload.
 
 > [!IMPORTANT]
-> In production the auth API rejects every `chrome-extension://` origin unless its ID is listed in `LEETPRO_EXTENSION_IDS`. Copy the ID from `chrome://extensions`.
+> Copy the extension's ID into `LEETPRO_EXTENSION_IDS` on the server. The Web Store ID stays the same after the first upload. In production the auth API rejects every `chrome-extension://` origin not on that list. The popup's **Sign out** is a `POST` to `/api/auth/sign-out`, so it fails until the ID is listed.
 
 ## Environment variables
 
@@ -228,6 +242,7 @@ OAuth callback URLs follow Better Auth's pattern: `{BETTER_AUTH_URL}/api/auth/ca
 | `pnpm build` | Production build |
 | `pnpm start` | Serve the production build |
 | `pnpm lint` | Run ESLint |
+| `pnpm extension:build --api-base <url>` | Package the extension for a deployed origin into `dist/` |
 | `pnpm db:migrate` | Create and apply migrations (development) |
 | `pnpm db:generate` | Generate the Prisma client into `src/generated/prisma` |
 | `pnpm db:seed` | Seed problem lists |
@@ -307,6 +322,7 @@ LeetPro is a standard Next.js app and runs on any Node host (Vercel, Railway, Fl
 
 5. Seed once with `pnpm db:seed`.
 6. Register each OAuth provider's callback URL against the production domain.
+7. Build the extension against the same domain and upload the zip. See [Building for production](#building-for-production).
 
 ## Design system
 

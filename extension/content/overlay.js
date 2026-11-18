@@ -602,7 +602,7 @@ function showFeedbackOverlay(problemData, solution) {
       ? { success: true, data: problemData }
       : await send({ type: "PROBLEM_DETECTED", data: problemData });
     if (!detected?.success || !detected.data?.id) {
-      setStatus(errorText(detected, "Couldn't reach LeetPro. Is the app running?"), "err");
+      setStatus(errorText(detected, "Couldn't reach LeetPro. Check your connection, then press Retry."), "err");
       return false;
     }
     sync.dirty = false;
