@@ -80,7 +80,7 @@ document.getElementById("attempt-form").addEventListener("submit", async (e) => 
   e.preventDefault();
   const submitBtn = document.getElementById("submit-btn");
   submitBtn.disabled = true;
-  submitBtn.textContent = "Logging...";
+  submitBtn.textContent = "Logging attempt…";
 
   // The server may not know this problem yet (the page loaded while signed
   // out, or detection failed). Register it first so the attempt has an id,
@@ -302,22 +302,16 @@ async function init() {
 function showProblemUI(problem) {
   const diffBadge = document.getElementById("problem-difficulty");
   const difficulty = String(problem.difficulty || "").toLowerCase();
-  diffBadge.textContent = { easy: "E", medium: "M", hard: "H" }[difficulty] || "?";
-  diffBadge.title = difficulty;
-  diffBadge.setAttribute("aria-label", difficulty);
-  diffBadge.className = `badge ${difficulty}`;
+  diffBadge.textContent = { easy: "Easy", medium: "Medium", hard: "Hard" }[difficulty] || "";
+  diffBadge.className = `diff ${difficulty}`;
 
-  document.getElementById("problem-title").textContent =
-    (problem.leetcodeId ? `${problem.leetcodeId}. ` : "") + problem.title;
+  document.getElementById("problem-title").textContent = problem.title;
 
   const topicsEl = document.getElementById("problem-topics");
-  topicsEl.innerHTML = "";
-  (problem.topics || []).forEach((t) => {
-    const tag = document.createElement("span");
-    tag.className = "tag";
-    tag.textContent = t;
-    topicsEl.appendChild(tag);
-  });
+  const parts = [];
+  if (problem.leetcodeId) parts.push(`#${problem.leetcodeId}`);
+  parts.push(...(problem.topics || []).slice(0, 3));
+  topicsEl.textContent = parts.join(", ");
 
   showState("problemDetected");
 }
@@ -326,7 +320,8 @@ function showProblemStats(stats, recentAttempts) {
   const el = document.getElementById("problem-stats");
   el.classList.remove("hidden");
 
-  document.getElementById("ps-attempts").textContent = stats.totalAttempts;
+  document.getElementById("ps-attempts").textContent =
+    `${stats.totalAttempts} ${stats.totalAttempts === 1 ? "time" : "times"}`;
   document.getElementById("ps-best").textContent =
     stats.bestConfidence ? `${stats.bestConfidence}/5` : "—";
 
@@ -334,7 +329,8 @@ function showProblemStats(stats, recentAttempts) {
   if (stats.recall !== null && stats.recall !== undefined) {
     const pct = Math.round(stats.recall * 100);
     recallEl.textContent = `${pct}%`;
-    recallEl.className = `stat-item-value ${pct < 70 ? "due" : "good"}`;
+    recallEl.className = `recall-value ${pct < 70 ? "fading" : "good"}`;
+    recallEl.title = pct < 70 ? "Below 70%: due for review" : "Estimated recall";
   } else {
     recallEl.textContent = "—";
   }
@@ -355,7 +351,7 @@ function showProblemStats(stats, recentAttempts) {
         <span class="history-date">${dateStr}</span>
         <span class="history-result">${RESULT_LABELS[a.result] || a.result}</span>
         <span class="history-conf">${a.confidence}/5</span>
-        <span class="history-date">${a.timeMinutes ? a.timeMinutes + "m" : ""}</span>
+        <span class="history-time">${a.timeMinutes ? a.timeMinutes + "m" : ""}</span>
       `;
       historyEl.appendChild(row);
     }

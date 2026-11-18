@@ -45,7 +45,8 @@ A spaced-repetition ledger for LeetCode and NeetCode practice. A Chrome extensio
 - **Recall estimates.** An exponential forgetting curve shows how well you probably still remember every problem, so fading ones stand out before they're due.
 - **Review queue.** One page of what's due today, ordered by urgency.
 - **Curated lists.** Track progress through Blind 75, Grind 75, and NeetCode 150.
-- **Dashboard.** Totals, difficulty and status breakdowns, streaks, and per-topic progress.
+- **Today.** What to solve tonight, reviews due this week, progress through Blind 75, Grind 75 and NeetCode 150 with a projected finish date, and your weakest and strongest topics.
+- **Problems.** Every logged problem in one table, filterable by status and by topic.
 - **Editable history.** Edit any past attempt; the schedule is recomputed from a snapshot taken before that attempt.
 - **Extension popup stats.** See per-problem history right from the toolbar while you're on a problem page.
 - **Sign-in options.** Email and password, or Google, GitHub, and Discord OAuth.
@@ -73,7 +74,7 @@ Implemented in [`src/lib/spaced-repetition.ts`](src/lib/spaced-repetition.ts).
 | 4 | 7 days, or 2× current interval | `review` |
 | 5 | 14 days, or 2× current interval | `review`, then `mastered` once the interval reaches 14+ days |
 
-Intervals cap at **180 days**.
+Intervals cap at **180 days**. Mastered problems still come due as long-interval check-ins: a 4+ keeps them mastered, a 3 or lower demotes them.
 
 ### Recall estimate
 
@@ -328,7 +329,7 @@ LeetPro is a standard Next.js app and runs on any Node host (Vercel, Railway, Fl
 
 ## Design system
 
-The interface is a dark, terminal-adjacent ledger: graphite surfaces, warm ink, and a single amber signal for what's due. Headings use **JetBrains Mono** and body text uses **Hanken Grotesk**. Tokens, components, and rules are in [`DESIGN.md`](DESIGN.md); please read it before UI work.
+The interface is dark: graphite surfaces, warm ink, and one amber signal, a highlighter behind anything that is fading. Text uses **Mona Sans**, with headlines set slightly wide; the wordmark uses **JetBrains Mono**. Tokens, components, and rules are in [`DESIGN.md`](DESIGN.md); please read it before UI work.
 
 The logo is three ledger entries fading top to bottom, with the amber one due. The source of truth is [`brand/leetpro-mark.svg`](brand/leetpro-mark.svg).
 

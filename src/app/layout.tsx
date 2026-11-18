@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Mona_Sans, JetBrains_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const hanken = Hanken_Grotesk({
-  variable: "--font-hanken",
+const monaSans = Mona_Sans({
+  variable: "--font-mona",
+  axes: ["wdth"],
   subsets: ["latin"],
 });
 
@@ -22,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${hanken.variable} ${jetbrains.variable} dark h-full antialiased`}
+      className={`${monaSans.variable} ${jetbrains.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <TooltipProvider>{children}</TooltipProvider>

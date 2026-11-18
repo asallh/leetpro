@@ -64,9 +64,9 @@ export default async function GatePage({
       <div className="mb-8 text-lg">
         <Logo />
       </div>
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm rounded-2xl py-2 shadow-[0_16px_36px_-16px_rgba(0,0,0,0.55)]">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl font-bold tracking-[-0.03em]">
+          <CardTitle className="marker text-[1.75rem] leading-tight font-bold">
             Private preview
           </CardTitle>
           <CardDescription>
@@ -96,7 +96,7 @@ export default async function GatePage({
                   : "That password isn't right."}
               </p>
             )}
-            <Button type="submit" className="w-full">
+            <Button type="submit" size="lg" className="w-full rounded-lg">
               Continue
             </Button>
           </form>

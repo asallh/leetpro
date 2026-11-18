@@ -1,168 +1,88 @@
 ---
-# gstack: design-md-format=spec
 name: LeetPro
-description: A dark, terminal-adjacent ledger of what you know and what you're forgetting; graphite, warm ink, one amber signal.
+description: Whiteboard layout in the original Ledger colours. Graphite ground, warm ink, and one amber highlighter for anything fading.
 colors:
   background: "#16171A"
-  surface: "#1E2024"
-  surface-raised: "#26282D"
-  text: "#E9E6DF"
-  text-muted: "#9C988F"
-  border: "#303238"
-  primary: "#F0B429"
-  on-primary: "#1A1408"
-  due: "#F0B429"
-  success: "#6CC48A"
-  warning: "#F0B429"
-  error: "#EF7B6A"
-  light-background: "#EDEDEB"
-  light-surface: "#FAFAF9"
-  light-text: "#1A1B1E"
-  light-text-muted: "#64666C"
-  light-border: "#D6D6D2"
-  light-due-text: "#8A5F00"
-  light-success: "#1E7A45"
-  light-error: "#B93A2A"
+  card: "#1E2024"
+  raised: "#26282D"
+  ink: "#E9E6DF"
+  ink-muted: "#9C988F"
+  line: "#303238"
+  amber: "#F0B429"
+  on-amber: "#1A1408"
+  green: "#6CC48A"
+  medium: "#E3C27A"
+  red: "#EF7B6A"
 typography:
-  display:
-    fontFamily: JetBrains Mono
-    fontWeight: 700
-    fontSize: clamp(1.75rem, 3.6vw, 2.75rem)
-    letterSpacing: -0.04em
-  heading:
-    fontFamily: JetBrains Mono
-    fontWeight: 700
-    fontSize: 1.5rem
-    letterSpacing: -0.03em
-  body:
-    fontFamily: Hanken Grotesk
-    fontSize: 0.9375rem
-    lineHeight: 1.5
-  label:
-    fontFamily: JetBrains Mono
-    fontSize: 0.75rem
-    letterSpacing: 0
-  mono:
-    fontFamily: JetBrains Mono
-    fontFeature: tnum
+  family: Mona Sans (variable, wdth and wght axes)
+  display: "wdth 112%, weight 700, for page headlines, list names and big figures (.marker)"
+  ui: "wdth 100%, weights 400 to 600, for everything else"
+  wordmark: "JetBrains Mono 700"
+  page-title: "2rem to 2.5rem display"
+  today-headline: "clamp(2.25rem, 5vw, 3.5rem) display, line-height 1.08"
+  section: "1.25rem, weight 600"
+  body: "1rem; lead 1.125rem muted"
+  small: "0.875rem"
 rounded:
-  sm: 2px
-  md: 3px
-  lg: 4px
-  full: 9999px
-spacing:
-  xs: 4px
-  sm: 8px
-  md: 16px
-  lg: 24px
-  xl: 32px
-  2xl: 48px
-components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.on-primary}"
-    rounded: "{rounded.lg}"
-  button-primary-hover:
-    backgroundColor: "#F4C451"
-  input:
-    borderColor: "{colors.border}"
-    rounded: "{rounded.lg}"
-  card:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.lg}"
-  nav-link:
-    textColor: "{colors.text-muted}"
+  control: "8px"
+  panel: "16px"
+  pill: "9999px"
 ---
 
 # LeetPro
 
 ## Overview
 
-**Creative North Star:** A ledger of your memory. Every problem you've solved is an entry, every entry has a recall estimate, and the one warm color in the room points at what you're about to forget.
-**Product context:** Next.js web app plus a Chrome extension for people preparing for coding interviews on LeetCode and NeetCode. The extension logs attempts; the app schedules spaced-repetition reviews. Peers: LeetCode (orange on dark), NeetCode (near-black, purple Pro accent, traffic-light difficulty), and a long tail of small SRS trackers that all show the same due list with green/yellow/red badges.
-**Memorable thing:** "It knows exactly what I'm about to forget."
-**Mode per surface:**
-- Dashboard, Problems, Review, Lists, extension popup: Operate. Scanned, dense, numbers line up.
-- Landing and auth pages: Persuade, lightly. Same system, no marketing chrome.
-**Reference sites:** https://neetcode.io/practice (observed 2026-11-10). LeetCode blocked the headless browser.
-**Key characteristics:**
-- Graphite ground, warm off-white ink, monospace headlines.
-- Recall printed as a number with a five-step meter on every problem row.
-- Amber appears only where you should act: due work and the primary action.
-- Square-ish corners (4px max). Tables, not card grids.
+Interview prep happens on whiteboards, and people who track LeetCode in a spreadsheet highlight a row yellow when it needs a redo. LeetPro takes both: a calm app on a graphite ground, where the amber highlighter marks exactly one thing, a problem that is fading and needs review. Everything else stays quiet so that mark is the first thing you see.
+
+The app is dark only, in the original Ledger colours. Content sits in a 72rem (`max-w-6xl`) column, left aligned, with generous space between sections.
 
 ## Colors
 
-**Strategy:** Restrained. Warm neutrals plus one amber signal.
-**Light or dark:** Dark by default. People open LeetPro next to a dark editor and a dark LeetCode tab, usually in the evening; a dark ledger sits beside them without glare. Light mode exists (`html` without `.dark`) with the same hierarchy, not an inversion.
+The original Ledger palette, dark only.
 
-- `primary` / `due` (amber) means "act here": the primary button, the due count, recall meters of due problems, the `›` marker on due rows. Never decorative, never a background wash.
-- In light mode amber stays the button fill (`on-primary` text), but amber *text* switches to `light-due-text` (#8A5F00) to keep 4.5:1.
-- Neutrals are warm (ink #E9E6DF, muted #9C988F) so the amber reads as part of the same world instead of a neon pop.
-- `success` marks mastered problems and completed list entries; `error` is for destructive actions and validation only.
-- Difficulty is never colored. See Components.
+- **Graphite** `#16171A`: page ground. **Card** `#1E2024`: the main sheet on each page. **Raised** `#26282D`: hover, bar tracks, menus.
+- **Warm ink** `#E9E6DF`: text. **Muted** `#9C988F`: secondary text. **Line** `#303238`: borders and dividers.
+- **Amber** `#F0B429`: the one signal. It is the primary button, the active nav underline, focus rings, and the highlighter behind anything fading (with `#1A1408` ink on top).
+- **Green** `#6CC48A`: solved and remembered, and Easy. **Medium** `#E3C27A`. **Red** `#EF7B6A`: errors, Hard, and topic confidence below 3.
+- The logo is the original mark (three ledger rows, the last one amber) with the JetBrains Mono "Leet**Pro**" wordmark.
 
 ## Typography
 
-JetBrains Mono is the display voice: page titles, the due headline, the wordmark, table headers, and every number the scheduler produces (problem IDs, recall %, intervals, dates, times). It reads like a log file, which is the point. Hanken Grotesk carries body and UI text (problem titles, descriptions, form labels, buttons) so long titles stay compact and readable.
-
-- Loaded with `next/font/google` in `src/app/layout.tsx` as `--font-hanken` and `--font-jetbrains`; mapped to Tailwind `font-sans`, `font-mono` and `font-heading`.
-- Verified 2026-11-10: Google Fonts CSS API returns 200; Next font data lists JetBrains Mono wght 100–800, Hanken Grotesk wght 100–900.
-- Scale: display clamp(28px–44px) / heading 24px / section 14px semibold / body 15px / table 14px / label 12px mono.
-- Mono headlines get wide fast: keep them under ~40 characters, tracking -0.03 to -0.04em.
-- Always `tabular-nums` on columns of digits (the `.num` utility).
+One family, Mona Sans (GitHub's typeface, which the audience reads every day). Display text uses the `.marker` utility: the same face at 112% width and weight 700, for page titles, the Today headline, list names, empty-state titles and big counts. Everything else is the normal width at 400 to 600. Sentence case everywhere; no all-caps labels. Numbers in tables use tabular figures (`.num`). JetBrains Mono is kept only for the LeetPro wordmark and for code in the extension. The extension popup and overlay load the same font from Google Fonts.
 
 ## Layout
 
-- App container `max-w-6xl` (1152px), 16px side gutter, 24px vertical rhythm between sections.
-- Dashboard: headline row, then a two-column grid (queue table | 340px side column with forecast and memory summary). Collapses to one column below `lg`.
-- Problems, Review, Lists: full-width tables or flat lists inside a single bordered frame. No grids of identical cards.
-- Table rows 44px; headers are mono, muted, not uppercased.
-- Tables scroll horizontally inside their frame on narrow screens; the page never does.
+- **Shell:** sticky white top bar: logo, then Today, Problems, Review, Lists (active link bold with a 3px amber underline), then the account menu. Below `md` the links move to a scrollable second row.
+- **Today:** a greeting and one headline sentence about what's fading, then a two-column grid (stacks below `lg`): Tonight (a white sheet of up to four problems with Review/Start buttons), This week (reviews due per day), Progress (list completion and projected finish date), Topics (three weakest and three strongest by confidence).
+- **Problems:** the upgraded spreadsheet. Filter pills (All, Needs review, Still learning, Mastered) with counts, then one table: problem, topic, stage, recall, last solved, tries, best, next review. Columns drop at `sm`/`md`/`lg`.
+- **Review:** due problems in one sheet, each with Open on LeetCode and Log attempt.
+- **Lists:** one panel per list with a progress bar and an expandable checklist grouped by topic.
 
-## Elevation & Depth
+## Elevation & Shapes
 
-Flat. Hierarchy comes from surface steps (background → surface → surface-raised) and 1px borders. Only floating layers (dialogs, dropdowns, the extension popup) get a shadow, and it's an offset soft shadow, never a glow.
-
-## Shapes
-
-`--radius` is 4px. Buttons, inputs, frames 4px; badges and glyphs 3px; meters 1px. No pills except the avatar.
-
-## Components
-
-- **Logo mark:** a graphite tile (rx 7 on a 32 grid) holding three ledger lines that shorten and fade top to bottom: ink #E9E6DF (16 wide), muted #8F8C85 (12), amber #F0B429 (8). The last, amber line is the entry that's due. Lines are 4 units tall on even rows, so at 16px each is exactly 2px and stays sharp. The tile stays graphite in light mode too.
-  - Source of truth: `brand/leetpro-mark.svg` (rounded) and `brand/leetpro-mark-square.svg` (full-bleed, for iOS).
-  - Web: `src/app/icon.svg`, `src/app/favicon.ico` (16/32/48), `src/app/apple-icon.png` (180), and `<Logo />` / `<LogoMark />` in `src/components/logo.tsx`.
-  - Extension: `extension/icons/icon{16,32,48,128}.png` and the inline SVG in `extension/popup/popup.html`.
-  - PNG and ICO files are rasterized from the brand SVG with the sharp copy Next.js already installs. Change the SVG first, then regenerate every size and update the two inline copies.
-- **Wordmark:** `Leet` in ink + `Pro` in `due-text`, JetBrains Mono 700, tracking -0.04em, always to the right of the mark with an 8px gap. No `~/` prefix.
-- **Difficulty glyph** (`DifficultyBadge`): a 22px mono square with E, M or H. Easy: outline border. Medium: outline in ink. Hard: filled ink with surface text. The full word is in `title` and `aria-label`.
-- **Recall meter** (`RecallMeter`): five 6px squares plus the % in mono. Filled squares are ink; when the problem is due (recall < 70%) the filled squares and the % turn amber. Recall is an estimate from `lastAttemptDate` and `reviewInterval` (`src/lib/recall.ts`): it reaches 70% on the scheduled review date.
-- **Due row marker:** due rows prefix the title with an amber `›`.
-- **Buttons:** primary = amber fill. Outline = border + transparent. Ghost for row actions. Focus: 3px ring at 50% `ring` (amber). Disabled: 50% opacity.
-- **Status label:** mono lowercase text (`new`, `learning`, `review`, `mastered`); mastered uses `success`, the rest muted. No colored pills.
-- **Empty states:** say what will appear and how to get the first entry (usually: install the extension and solve a problem).
-
-## Do's and Don'ts
-
-- Do print every scheduler number in JetBrains Mono with tabular figures.
-- Do use amber only for due work and the primary action on a screen.
-- Do keep difficulty neutral (E · M · H glyph).
-- Do use tables or flat lists for collections of problems.
-- Don't add green/yellow/red difficulty or status colors.
-- Don't add a second accent hue, gradients, or glows on dark surfaces.
-- Don't build rows of big-number stat tiles; use a compact key/value list.
-- Don't round anything past 4px (avatar excepted).
+The page ground is flat. The main sheet on Today and the landing example carry a soft two-layer shadow; other panels use a 1px line border only. Panels are 16px radius, controls 8px, filter chips are pills.
 
 ## Motion
 
-- **Approach:** minimal-functional.
-- **Easing:** enter(ease-out) exit(ease-out) move(ease-in-out)
-- **Duration:** micro(50-100ms) short(150-250ms) medium(250-400ms) long(400-700ms)
-- **The one authored moment:** after logging a review, the row's recall meter refills from amber to ink (medium duration). Respect `prefers-reduced-motion`.
+One authored moment: on Today, the highlighter draws across the fading count once on load (700ms, ease-out), skipped under reduced motion. Otherwise only colour transitions on hover.
+
+## Do's and Don'ts
+
+- **Do** use the highlighter only for fading and needs-review.
+- **Do** state every status in words as well as colour.
+- **Do** keep one filled amber button per view.
+- **Don't** add all-caps labels, dot-joined metadata strings, or numbered markers that aren't a real sequence.
+- **Don't** put stats in identical card grids; a page has one sheet and quiet sections around it.
 
 ## Decisions Log
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-11-12 | Initial design system created ("Ledger") | Created by /design-consultation from product context, NeetCode research and a three-direction preview; user picked Ledger over Highlighter and Tide. |
 | 2026-11-12 | Fading-ledger logo mark; shared across favicon, app and extension | Replaces the Next.js default favicon and the old extension icons; dropped the `~/` wordmark prefix now that the mark carries the terminal feel. |
+| 2026-11-18 | Redesign: "Ledger" replaced by "Pulse Catalog"; first built surface is the dashboard | User picked Pulse Catalog on a bolder re-roll over a hand led by Departure Board. Source world: Factory Records/Saville catalog sleeve (`brand-identity-canon-saville-catalog-sleeve`, seed `4697e0ff730f052b`). Dark only, radius 0, hairline regions, one-job code colours, Schibsted Grotesk. Open: the logo mark still carries the old amber and the `brand/` SVG and extension icons are not updated; problems, review, lists, auth and the Chrome extension inherit tokens but are not recomposed (the extension's popup and overlay still carry their own copy of the Ledger palette); mobile nav links are hidden below `md`, which predates the redesign. |
+| 2026-11-18 | Dashboard clarity pass: stacked recall plot replaced by the labelled due timeline; plain section heads | User found the unlabelled ridge plot meaningless and the sections' purpose unclear. Each region now opens with a heading naming its job and one explaining sentence; the first viewport pairs what to do now with tonight's plan; the figure became one named row per problem with its due day. |
+| 2026-11-18 | Dashboard rebuilt as insights that replace the spreadsheet | User found the page dense and low in value; it must give everything a tracking spreadsheet gives and more. Sections now each state one finding as a sentence: tonight's plan, list progress with projected finish dates, a topic map with verdicts, what's slipping from memory, and whether confidence is improving, with the spreadsheet-style log kept at the end. The due timeline was dropped. |
+| 2026-11-18 | Whole app redone as "Whiteboard", replacing Pulse Catalog | User rejected Pulse Catalog as dense and low value. New direction confirmed with the user: light whiteboard ground, marker-ink colours, Recursive with a casual marker axis for headlines, and a yellow highlighter as the single signal for fading problems. Today simplified to four blocks; Problems became a filterable spreadsheet view; Review, Lists, landing, auth and gate restyled. Open: extension popup and overlay still use the old Ledger palette; brand/ SVGs and app icon not updated; Blind 75 and NeetCode 150 data are missing 3 and 10 problems. |
+| 2026-11-18 | Original logo and Ledger colours restored on the Whiteboard layout | User wanted the original mark and the graphite, warm ink and amber palette kept, with the new layout. The extension popup and overlay got the same treatment. |
+| 2026-11-18 | UI font changed from Recursive to Mona Sans | User disliked Recursive. Compared Mona Sans, Geist and Hanken Grotesk on a slice of the app; user chose Mona Sans. Headlines use its width axis at 112%. Applied to the web app and the extension. |

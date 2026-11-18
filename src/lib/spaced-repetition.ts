@@ -47,6 +47,9 @@ export function calculateNextReview(input: ReviewInput): ReviewResult {
     newStatus = "learning";
   } else if (confidence === 3) {
     newStatus = "review";
+  } else if (currentStatus === "mastered") {
+    // A confident check-in keeps it mastered; a 3 or below demotes it above.
+    newStatus = "mastered";
   } else if (currentStatus === "review" && confidence >= 4 && currentInterval >= 14) {
     newStatus = "mastered";
   } else {

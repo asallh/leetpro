@@ -110,7 +110,7 @@ export function rankReviews(
   const picks: ReviewPick[] = [];
 
   for (const up of userProblems) {
-    if (up.status === "mastered" || !up.nextReviewDate || up.nextReviewDate > now) continue;
+    if (!up.nextReviewDate || up.nextReviewDate > now) continue;
     const recall = estimateRecall(up.lastAttemptDate, up.reviewInterval, now) ?? 0;
     const overdueDays = Math.max(
       0,
@@ -122,6 +122,7 @@ export function rankReviews(
     let score = DUE_RECALL - recall;
     const reasons = [`recall ${Math.round(recall * 100)}%`];
     if (overdueDays > 0) reasons.push(`${plural(overdueDays, "day")} overdue`);
+    if (up.status === "mastered") reasons.push("mastered check-in");
     if (up.status === "learning") {
       score += 0.15;
       reasons.push("still learning");
@@ -250,7 +251,6 @@ export function recommendNextAction({
   const soon = addHours(now, 24);
   const dueSoonCount = userProblems.filter(
     (up) =>
-      up.status !== "mastered" &&
       up.nextReviewDate != null &&
       up.nextReviewDate > now &&
       up.nextReviewDate <= soon
