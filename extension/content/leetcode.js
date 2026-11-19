@@ -1,77 +1,101 @@
 (async function () {
-  const slug = window.location.pathname.match(/\/problems\/([\w-]+)/)?.[1];
-  if (!slug) return;
+  const slugFromUrl = () => window.location.pathname.match(/\/problems\/([\w-]+)/)?.[1] ?? null;
+  const initialSlug = slugFromUrl();
+  if (!initialSlug) return;
 
-  let problemData = null;
+  // LeetCode is a single-page app: "Next question", the problem list and the
+  // back button all change the URL without reloading, so this script keeps
+  // running on the new problem. Never trust a problem captured at load time;
+  // always look it up for the slug in the URL right now (issue #15).
+  const problems = new Map(); // slug -> Promise<problemData | null>
 
-  // Primary: LeetCode GraphQL API
-  try {
-    const res = await fetch("https://leetcode.com/graphql/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        query: `query getQuestionDetail($titleSlug: String!) {
-          question(titleSlug: $titleSlug) {
-            questionId
-            title
-            titleSlug
-            difficulty
-            topicTags { name slug }
-          }
-        }`,
-        variables: { titleSlug: slug },
-      }),
-    });
-
-    const json = await res.json();
-    const q = json?.data?.question;
-
-    if (q) {
-      problemData = {
-        leetcodeId: parseInt(q.questionId),
-        title: q.title,
-        slug: q.titleSlug,
-        difficulty: q.difficulty.toLowerCase(),
-        url: `https://leetcode.com/problems/${q.titleSlug}/`,
-        platform: "leetcode",
-        topics: q.topicTags.map((t) => t.name),
-      };
+  function problemFor(slug) {
+    if (!problems.has(slug)) {
+      const lookup = detectProblem(slug).then((data) => {
+        if (!data) problems.delete(slug); // let a later attempt retry
+        return data;
+      });
+      problems.set(slug, lookup);
     }
-  } catch (e) {
-    console.warn("[LeetPro] GraphQL failed, falling back to DOM", e);
+    return problems.get(slug);
   }
 
-  // Fallback: DOM scraping
-  if (!problemData) {
-    problemData = await extractFromDOM(slug);
+  async function detectProblem(slug) {
+    // Primary: LeetCode GraphQL API
+    try {
+      const res = await fetch("https://leetcode.com/graphql/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          query: `query getQuestionDetail($titleSlug: String!) {
+            question(titleSlug: $titleSlug) {
+              questionId
+              title
+              titleSlug
+              difficulty
+              topicTags { name slug }
+            }
+          }`,
+          variables: { titleSlug: slug },
+        }),
+      });
+
+      const json = await res.json();
+      const q = json?.data?.question;
+
+      if (q) {
+        return {
+          leetcodeId: parseInt(q.questionId),
+          title: q.title,
+          slug: q.titleSlug,
+          difficulty: q.difficulty.toLowerCase(),
+          url: `https://leetcode.com/problems/${q.titleSlug}/`,
+          platform: "leetcode",
+          topics: q.topicTags.map((t) => t.name),
+        };
+      }
+    } catch (e) {
+      console.warn("[LeetPro] GraphQL failed, falling back to DOM", e);
+    }
+
+    // Fallback: DOM scraping, only while the page still shows this problem.
+    if (slugFromUrl() !== slug) return null;
+    return extractFromDOM(slug);
   }
 
-  if (problemData) {
-    chrome.runtime.sendMessage({
-      type: "PROBLEM_DETECTED",
-      data: problemData,
-    });
-    chrome.storage.local.set({ currentProblem: problemData });
+  // Tell the service worker and the popup which problem this tab is on.
+  let announcedSlug = null;
+  async function announceCurrentProblem() {
+    const slug = slugFromUrl();
+    if (!slug || slug === announcedSlug) return;
+    announcedSlug = slug;
+    const problemData = await problemFor(slug);
+    if (!problemData) {
+      announcedSlug = null;
+      return;
+    }
+    if (slugFromUrl() !== slug) return; // moved on while we were looking it up
+    try {
+      chrome.runtime.sendMessage({ type: "PROBLEM_DETECTED", data: problemData });
+      chrome.storage.local.set({ currentProblem: problemData });
+    } catch {
+      // The extension was reloaded; this old content script is orphaned.
+    }
   }
 
-  // Handle SPA navigation
-  const originalPushState = history.pushState;
-  history.pushState = function (...args) {
-    originalPushState.apply(this, args);
-    window.dispatchEvent(new Event("leetpro-locationchange"));
+  await announceCurrentProblem();
+
+  // Content scripts run in an isolated world, so patching history.pushState
+  // here never sees the page's own navigation. Watch the URL instead.
+  let lastPath = window.location.pathname;
+  const onLocationChange = () => {
+    if (window.location.pathname === lastPath) return;
+    lastPath = window.location.pathname;
+    announceCurrentProblem();
   };
-
-  window.addEventListener("popstate", () => redetect());
-  window.addEventListener("leetpro-locationchange", () => redetect());
-
-  async function redetect() {
-    const newSlug = window.location.pathname.match(
-      /\/problems\/([\w-]+)/
-    )?.[1];
-    if (!newSlug || newSlug === slug) return;
-    setTimeout(() => location.reload(), 100);
-  }
+  window.addEventListener("popstate", onLocationChange);
+  setInterval(onLocationChange, 1000);
 
   async function extractFromDOM(slug) {
     await waitForElement('[data-cy="question-title"], .text-title-large, title');
@@ -121,9 +145,9 @@
   }
 
   // Watch for accepted submissions and auto-show the feedback overlay
-  watchForAcceptedSubmission(problemData);
+  watchForAcceptedSubmission();
 
-  function watchForAcceptedSubmission(problem) {
+  function watchForAcceptedSubmission() {
     // One overlay per submission, whichever signal sees it first.
     const shownFor = new Set();
 
@@ -131,9 +155,12 @@
       if (!key || shownFor.has(key)) return;
       shownFor.add(key);
       armedUntil = 0; // this submit is handled; don't let the DOM fallback re-fire
-      readEditorSolution(grabSolutionCode).then((solution) =>
-        showFeedbackOverlay(problem, solution)
-      );
+      // Resolve the problem from the URL at submit time, not page load.
+      const slug = slugFromUrl();
+      Promise.all([
+        slug ? problemFor(slug) : null,
+        readEditorSolution(grabSolutionCode),
+      ]).then(([problem, solution]) => showFeedbackOverlay(problem, solution));
     }
 
     function currentSubmissionKey() {
