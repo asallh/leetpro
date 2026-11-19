@@ -1,0 +1,21 @@
+# Reviewed false positives for the gstack-redact pre-push scanner.
+# Each line is the exact text the scanner matched. Lines starting with # are comments.
+# Add an entry only after checking the match is not a real secret or personal data.
+
+# internal.hostname: the Chrome extension API chrome.storage.local, not a hostname
+# (extension/content/leetcode.js, extension/content/neetcode.js)
+storage.local
+
+# pii.wallet: pieces of package integrity checksums in pnpm-lock.yaml, not wallet addresses
+1bg5J4ap31DzsznhnFKcfBNBsjCnw
+3j5fMGzUMCxWBJ3dV3a7Wz8y2f
+
+# env.kv: the dev extension's public key (scripts/build-extension.mjs). Public by
+# design: it pins one extension ID for every unpacked dev install. No private key is in the repo.
+DEV_EXTENSION_KEY;
+
+# env.kv: React key props in Aceternity UI components, not secrets
+{beam.initialX
+{`${collision.coordinates.x}-${collision.coordinates.y}`}
+{words[currentWordIndex]}
+{`link-${idx}`}
