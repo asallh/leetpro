@@ -18,7 +18,9 @@ import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { Suspense } from "react";
 import Loading from "../loading";
-import { TopicFilter } from "./topic-filter";
+import { TOPICS } from "@/lib/data/topics";
+import { Fragment } from "react";
+import { SortSelect, TopicFilter } from "./topic-filter";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -27,6 +29,23 @@ const FILTERS = [
   { key: "mastered", label: "Mastered" },
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
+
+const SORTS = [
+  { key: "next", label: "Next review" },
+  { key: "topic", label: "Problem type" },
+  { key: "difficulty", label: "Difficulty" },
+  { key: "recent", label: "Last solved" },
+  { key: "recall", label: "Recall, lowest first" },
+] as const;
+type SortKey = (typeof SORTS)[number]["key"];
+
+const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2 } as const;
+
+/** Roadmap order for topics; anything off the roadmap sorts after, alphabetically. */
+function topicRank(topic: string) {
+  const i = (TOPICS as readonly string[]).indexOf(topic);
+  return i === -1 ? TOPICS.length : i;
+}
 
 export default function ProblemsPage(props: PageProps<"/problems">) {
   return (
@@ -40,6 +59,7 @@ async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/pro
   const session = await getRequiredSession();
   const params = await searchParams;
   const filter: FilterKey = FILTERS.some((f) => f.key === params.show) ? (params.show as FilterKey) : "all";
+  const sort: SortKey = SORTS.some((s) => s.key === params.sort) ? (params.sort as SortKey) : "next";
   const now = new Date();
 
   const userProblems = await prisma.userProblem.findMany({
@@ -67,7 +87,19 @@ async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/pro
         : key === "mastered"
           ? r.up.status === "mastered"
           : r.up.status === "learning" || r.up.status === "new_problem";
-  const shown = rows.filter((r) => matches(filter, r));
+  const time = (d: Date | null) => (d ? new Date(d).getTime() : null);
+  // Rows arrive ordered by next review, and Array.sort is stable, so that stays the tiebreak.
+  const compare: Record<SortKey, (a: (typeof rows)[number], b: (typeof rows)[number]) => number> = {
+    next: () => 0,
+    topic: (a, b) => topicRank(a.topic) - topicRank(b.topic) || a.topic.localeCompare(b.topic),
+    difficulty: (a, b) => DIFFICULTY_RANK[a.up.problem.difficulty] - DIFFICULTY_RANK[b.up.problem.difficulty],
+    recent: (a, b) => (time(b.up.lastAttemptDate) ?? -Infinity) - (time(a.up.lastAttemptDate) ?? -Infinity),
+    recall: (a, b) => (a.recall ?? Infinity) - (b.recall ?? Infinity),
+  };
+  const shown = rows.filter((r) => matches(filter, r)).sort(compare[sort]);
+  const groupCounts = new Map<string, number>();
+  for (const r of shown) groupCounts.set(r.topic, (groupCounts.get(r.topic) ?? 0) + 1);
+  const grouped = sort === "topic" && !topic;
 
   return (
     <div className="space-y-8">
@@ -97,6 +129,7 @@ async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/pro
                     const q = new URLSearchParams();
                     if (f.key !== "all") q.set("show", f.key);
                     if (topic) q.set("topic", topic);
+                    if (sort !== "next") q.set("sort", sort);
                     const qs = q.toString();
                     return qs ? `/problems?${qs}` : "/problems";
                   })()}
@@ -111,7 +144,10 @@ async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/pro
               );
             })}
           </nav>
-          <TopicFilter topics={topicOptions} value={topic} />
+          <div className="flex flex-wrap items-center gap-3">
+            <TopicFilter topics={topicOptions} value={topic} />
+            <SortSelect options={SORTS} value={sort} />
+          </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border bg-card">
@@ -137,11 +173,21 @@ async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/pro
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {shown.map(({ up, recall, fading }) => {
+                  {shown.map(({ up, recall, fading, topic: rowTopic }, i) => {
                     const next = up.nextReviewDate ? new Date(up.nextReviewDate) : null;
                     const dueNow = fading || (next != null && next <= now);
+                    const startsGroup = grouped && (i === 0 || shown[i - 1].topic !== rowTopic);
                     return (
-                      <TableRow key={up.id}>
+                      <Fragment key={up.id}>
+                      {startsGroup && (
+                        <TableRow className="bg-secondary/60 hover:bg-secondary/60">
+                          <TableCell colSpan={8} className="py-2 pl-5">
+                            <span className="font-semibold">{rowTopic}</span>{" "}
+                            <span className="num text-sm text-muted-foreground">{groupCounts.get(rowTopic)}</span>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow>
                         <TableCell className="py-3 pl-5">
                           <a
                             href={up.problem.url}
@@ -184,6 +230,7 @@ async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/pro
                                   : format(next, "MMM d")}
                         </TableCell>
                       </TableRow>
+                      </Fragment>
                     );
                   })}
                 </TableBody>
