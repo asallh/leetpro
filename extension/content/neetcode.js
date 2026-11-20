@@ -46,36 +46,27 @@
     leetcodeId,
   };
 
-  chrome.runtime.sendMessage({
-    type: "PROBLEM_DETECTED",
-    data: problemData,
-  });
-  chrome.storage.local.set({ currentProblem: problemData });
+  try {
+    chrome.runtime.sendMessage({
+      type: "PROBLEM_DETECTED",
+      data: problemData,
+    });
+    chrome.storage.local.set({ currentProblem: problemData });
+  } catch {
+    // The extension was reloaded; this old content script is orphaned.
+  }
 
-  // SPA navigation handling
-  const originalPushState = history.pushState;
-  history.pushState = function (...args) {
-    originalPushState.apply(this, args);
-    window.dispatchEvent(new Event("leetpro-locationchange"));
+  // SPA navigation: NeetCode swaps problems without a page load, and this
+  // script read the problem from the DOM once. Reload on a new slug so the
+  // next submission is logged against the right problem (issue #15).
+  // Content scripts run in an isolated world, so patching history.pushState
+  // here never sees the page's own navigation; watch the URL instead.
+  const onLocationChange = () => {
+    const newSlug = window.location.pathname.match(/\/problems\/([\w-]+)/)?.[1];
+    if (newSlug && newSlug !== slug) location.reload();
   };
-
-  window.addEventListener("popstate", () => {
-    const newSlug = window.location.pathname.match(
-      /\/problems\/([\w-]+)/
-    )?.[1];
-    if (newSlug && newSlug !== slug) {
-      setTimeout(() => location.reload(), 100);
-    }
-  });
-
-  window.addEventListener("leetpro-locationchange", () => {
-    const newSlug = window.location.pathname.match(
-      /\/problems\/([\w-]+)/
-    )?.[1];
-    if (newSlug && newSlug !== slug) {
-      setTimeout(() => location.reload(), 100);
-    }
-  });
+  window.addEventListener("popstate", onLocationChange);
+  setInterval(onLocationChange, 1000);
 
   // Watch for accepted submissions and auto-show the feedback overlay
   watchForAcceptedSubmission(problemData);

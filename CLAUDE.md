@@ -24,3 +24,7 @@ Key routing rules:
 Read DESIGN.md before visual or UI work: it defines the fonts, colors, spacing, and
 aesthetic direction. Ask the user before departing from it. When reviewing or QA-ing
 UI, flag code that doesn't match DESIGN.md.
+
+## Testing
+
+Run `pnpm test` (Vitest, `vitest.config.mts`). Tests live next to the code as `src/**/*.test.ts` and cover pure logic in `src/lib`. Add a test when you add or change scheduling, recall or other pure logic, and never commit with failing tests.

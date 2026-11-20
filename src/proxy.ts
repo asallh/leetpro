@@ -42,7 +42,9 @@ export async function proxy(request: NextRequest) {
 
   // 2. Account auth for app pages.
   const isAuthPage = AUTH_PAGES.includes(pathname);
-  if (sessionCookie && isAuthPage) {
+  // A session cookie only proves a cookie exists, not that it is valid. When
+  // getRequiredSession found it invalid it sends ?expired, so show the page.
+  if (sessionCookie && isAuthPage && !request.nextUrl.searchParams.has("expired")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
   if (!sessionCookie && isAppPage(pathname)) {

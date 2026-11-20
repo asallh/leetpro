@@ -14,6 +14,7 @@
 // The checked-in extension/ folder stays pointed at http://localhost:3000.
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -90,6 +91,29 @@ manifest.host_permissions = [
 
 manifest.name = isProd ? "LeetPro" : "LeetPro (Dev)";
 
+// Unpacked installs get an ID derived from their folder path, so every friend
+// testing a dev build would have a different one, and production auth only
+// trusts IDs listed in LEETPRO_EXTENSION_IDS. Pinning a public key gives every
+// dev install the same ID. Only the public half is needed to load unpacked.
+// The Web Store assigns its own ID and rejects "key", so prod builds omit it.
+const DEV_EXTENSION_KEY =
+  "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw3A8UUI6Lk7mT5YPxIKZbmt4PVo7QGs4b+8QIXgN0M0YNx0YhAUeAKmXOTsfgGTCY7sw3T0XN2R/rwQJC08hHOwlJJsbskpQcE830Im//3FAIJ/HbUAlzN1MjkOtZxw3v1azEZDvpDBHhka8errcjGLZbbmdLj9iCKQyj/PS1GtvV4V9Fs75v+EFhNnrxBS+j+9npd1N2MmBQUI1/C1PXH7u3NPwT6lJdzstQ5Ckeli9uiaIMKZjGKe+rTXAHVxdDI5iRwHPkhqWHQ6kYcToskWq9lz8Va0VJmPqI2iFnuOo4KqjSZbrGACP0PIz/6/6rNRZJSjMlcU1h9B2VoGIOQIDAQAB";
+
+// Chrome's extension ID: the first 32 hex digits of SHA-256(public key DER),
+// each mapped 0-f to a-p.
+function extensionIdFromKey(key) {
+  const hex = createHash("sha256").update(Buffer.from(key, "base64")).digest("hex").slice(0, 32);
+  return hex.replace(/./g, (h) => String.fromCharCode(97 + parseInt(h, 16)));
+}
+
+let devExtensionId = null;
+if (isProd) {
+  delete manifest.key;
+} else {
+  manifest.key = DEV_EXTENSION_KEY;
+  devExtensionId = extensionIdFromKey(DEV_EXTENSION_KEY);
+}
+
 const version = arg("version");
 if (version) {
   if (!/^\d+(\.\d+){0,3}$/.test(version)) fail(`Chrome versions are 1–4 dot-separated integers: ${version}`);
@@ -138,3 +162,10 @@ console.log(`
   Unpacked: ${relative(root, out)}/
   Package:  ${relative(root, zipPath)}
 `);
+
+if (devExtensionId) {
+  console.log(`  Extension ID (same on every install of this dev build): ${devExtensionId}
+  On the deployed app, set LEETPRO_EXTENSION_IDS=${devExtensionId}
+  so the popup can sign out.
+`);
+}

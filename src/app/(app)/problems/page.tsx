@@ -189,19 +189,25 @@ async function ProblemsContent({ searchParams }: { searchParams: PageProps<"/pro
                       )}
                       <TableRow>
                         <TableCell className="py-3 pl-5">
-                          <a
-                            href={up.problem.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <Link
+                            href={`/problems/${up.problem.slug}`}
                             className="font-semibold hover:underline"
                           >
                             <span className={fading ? "highlight" : undefined}>{up.problem.title}</span>
-                          </a>
+                          </Link>
                           <div className="mt-0.5 flex gap-2 text-sm">
                             <DifficultyBadge difficulty={up.problem.difficulty} />
                             {up.problem.leetcodeId != null && (
                               <span className="num text-muted-foreground">#{up.problem.leetcodeId}</span>
                             )}
+                            <a
+                              href={up.problem.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground hover:underline"
+                            >
+                              LeetCode ↗
+                            </a>
                           </div>
                         </TableCell>
                         <TableCell className="hidden text-muted-foreground md:table-cell">{topic || topicOf(up.problem)}</TableCell>
