@@ -11,7 +11,7 @@ import { ReviewAttemptDialog } from "../../review/review-attempt-dialog";
 import { MemoryTrace } from "./memory-trace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { differenceInCalendarDays, format, formatDistanceToNowStrict } from "date-fns";
+import { differenceInCalendarDays, format, formatDistanceStrict } from "date-fns";
 import { Suspense } from "react";
 import Loading from "../../loading";
 
@@ -76,7 +76,7 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
             <span>{topicOf(problem)}</span>
           </p>
           <h1 className="marker mt-3 text-[clamp(2.25rem,5vw,3.5rem)] leading-[1.05] font-bold tracking-[-0.02em]">
-            {fading ? <span className="highlight highlight-draw">{problem.title}</span> : problem.title}
+            {fading ? <span className="highlight">{problem.title}</span> : problem.title}
           </h1>
           {verdict && <p className="mt-4 max-w-[58ch] text-lg text-muted-foreground">{verdict}</p>}
         </div>
@@ -96,7 +96,7 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
       {attempts.length > 0 && (
         <section
           aria-labelledby="memory-heading"
-          className="rounded-2xl border bg-card px-5 pt-6 pb-5 shadow-[0_1px_0_rgba(0,0,0,0.4),0_18px_40px_-24px_rgba(0,0,0,0.7)] sm:px-8 sm:pt-7"
+          className="rounded-2xl border bg-card px-5 pt-6 pb-5 sm:px-8 sm:pt-7"
         >
           <h2 id="memory-heading" className="text-xl font-semibold">
             Memory
@@ -223,7 +223,7 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
                     </details>
                   )}
                   {!a.approach && !a.notes && !a.solution && (
-                    <p className="mt-3 text-sm text-faint">No notes for this attempt.</p>
+                    <p className="mt-3 text-sm text-muted-foreground">No notes for this attempt.</p>
                   )}
                 </article>
               </li>
@@ -245,7 +245,7 @@ function buildVerdict(
   if (!up.nextReviewDate) return r;
   const due = new Date(up.nextReviewDate);
   if (due <= now) {
-    return `${r} It came due ${formatDistanceToNowStrict(due, { addSuffix: true })}, so solve it again before it slips further.`;
+    return `${r} It came due ${formatDistanceStrict(due, now, { addSuffix: true })}, so solve it again before it slips further.`;
   }
   const days = differenceInCalendarDays(due, now);
   const when = days <= 1 ? (days === 0 ? "later today" : "tomorrow") : `on ${format(due, "MMM d")}, in ${days} days`;

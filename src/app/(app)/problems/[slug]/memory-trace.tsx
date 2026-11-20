@@ -56,7 +56,7 @@ export function MemoryTrace({
     const t1 = i < attempts.length - 1 ? new Date(attempts[i + 1].date).getTime() : end;
     const interval = Math.max(1, i < attempts.length - 1 ? (attempts[i + 1].prevInterval ?? 1) : currentInterval);
     const stability = interval / Math.log(1 / DUE_RECALL);
-    const recallAt = (t: number) => Math.exp(-(t - t0) / DAY_MS / stability);
+    const recallAt = (t: number) => Math.min(1, Math.exp(-(t - t0) / DAY_MS / stability));
 
     const sample = (from: number, to: number) => {
       const steps = 48;
@@ -69,7 +69,8 @@ export function MemoryTrace({
     };
 
     const isLast = i === attempts.length - 1;
-    const pastEnd = isLast ? Math.min(t1, now.getTime()) : t1;
+    // Never sample backwards, even if an attempt is dated after `now` (clock skew, seeded data).
+    const pastEnd = Math.max(t0, isLast ? Math.min(t1, now.getTime()) : t1);
     // The drop back up to 100% at each new attempt is part of the line.
     const head = i > 0 ? [`${x(t0).toFixed(1)},${y(1).toFixed(2)}`] : [];
     past.push([...head, ...sample(t0, pastEnd)].join(" "));
@@ -83,7 +84,7 @@ export function MemoryTrace({
   for (const a of attempts) {
     const group = clusters[clusters.length - 1];
     const t = new Date(a.date).getTime();
-    if (group && (t - new Date(group[group.length - 1].date).getTime()) / span < 0.03) group.push(a);
+    if (group && (t - new Date(group[0].date).getTime()) / span < 0.03) group.push(a);
     else clusters.push([a]);
   }
 
@@ -97,16 +98,16 @@ export function MemoryTrace({
 
   return (
     <figure className="m-0">
-      <div className="relative ml-11 mr-2 h-44 sm:h-52" role="img" aria-label={summary}>
+      <div className="relative ml-12 mr-2 h-44 sm:h-52" role="img" aria-label={summary}>
         {/* y-axis labels */}
-        <span className="num absolute top-0 -left-11 -translate-y-1/2 text-xs text-muted-foreground">100%</span>
+        <span className="num absolute top-0 -left-12 -translate-y-1/2 text-sm text-muted-foreground">100%</span>
         <span
-          className="num absolute -left-11 -translate-y-1/2 text-xs font-medium text-highlight"
+          className="num absolute -left-12 -translate-y-1/2 text-sm font-medium text-highlight"
           style={{ top: `${lineY}%` }}
         >
           {Math.round(DUE_RECALL * 100)}%
         </span>
-        <span className="num absolute bottom-0 -left-11 translate-y-1/2 text-xs text-muted-foreground">0%</span>
+        <span className="num absolute bottom-0 -left-12 translate-y-1/2 text-sm text-muted-foreground">0%</span>
 
         <svg
           viewBox={`0 0 ${W} ${H}`}
@@ -173,11 +174,11 @@ export function MemoryTrace({
               key={a.id}
               aria-hidden="true"
               className={cn(
-                "absolute top-0 grid h-5 min-w-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-card px-1 text-[0.625rem] font-bold leading-none",
+                "absolute top-0 grid h-6 min-w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-card px-1 text-xs font-bold leading-none",
                 a.result === "solved_independently"
-                  ? "bg-remembered text-[#10241A]"
+                  ? "bg-remembered text-background"
                   : a.result === "could_not_solve"
-                    ? "bg-destructive text-[#2A0F0B]"
+                    ? "bg-destructive text-background"
                     : "bg-foreground text-background"
               )}
               style={{ left: pct(new Date(a.date).getTime()) }}
@@ -191,7 +192,7 @@ export function MemoryTrace({
 
         {/* today and next review */}
         <span
-          className="absolute -bottom-7 -translate-x-1/2 text-xs font-medium whitespace-nowrap"
+          className="absolute -bottom-7 -translate-x-1/2 text-sm font-medium whitespace-nowrap"
           style={{ left: `${todayFrac * 100}%` }}
         >
           Today
@@ -204,7 +205,7 @@ export function MemoryTrace({
               style={{ left: `${dueFrac * 100}%`, top: `calc(${lineY}% - 4px)` }}
             />
             <span
-              className="absolute -bottom-7 -translate-x-1/2 text-xs whitespace-nowrap text-muted-foreground"
+              className="absolute -bottom-7 -translate-x-1/2 text-sm whitespace-nowrap text-muted-foreground"
               style={{ left: `${dueFrac * 100}%` }}
             >
               Due {format(due!, "MMM d")}
