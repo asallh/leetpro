@@ -41,6 +41,31 @@ describe("calculateNextReview", () => {
     expect(r.newStatus).toBe("mastered");
   });
 
+  it("uses the base interval on a first confident attempt", () => {
+    const r = calculateNextReview({ confidence: 4, currentInterval: 0, currentStatus: "new_problem", from });
+    expect(r.newInterval).toBe(7);
+    expect(r.newStatus).toBe("review");
+  });
+
+  it("stays in review one day short of the two-week mastery threshold", () => {
+    const r = calculateNextReview({ confidence: 4, currentInterval: 13, currentStatus: "review", from });
+    expect(r.newInterval).toBe(26);
+    expect(r.newStatus).toBe("review");
+  });
+
+  // Out-of-range confidence is not rejected here (the API validates it); these pin today's behaviour.
+  it("treats confidence 0 like a failed attempt", () => {
+    const r = calculateNextReview({ confidence: 0, currentInterval: 7, currentStatus: "review", from });
+    expect(r.newInterval).toBe(1);
+    expect(r.newStatus).toBe("learning");
+  });
+
+  it("gives confidence 6 a one-day base interval", () => {
+    const r = calculateNextReview({ confidence: 6, currentInterval: 0, currentStatus: "new_problem", from });
+    expect(r.newInterval).toBe(1);
+    expect(r.newStatus).toBe("review");
+  });
+
   it("keeps a mastered problem mastered on a confident check-in", () => {
     const r = calculateNextReview({ confidence: 4, currentInterval: 7, currentStatus: "mastered", from });
     expect(r.newStatus).toBe("mastered");
