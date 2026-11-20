@@ -9,9 +9,11 @@ import { HELP_LABELS, RESULT_LABELS } from "@/lib/dashboard-metrics";
 import { cn } from "@/lib/utils";
 import { ReviewAttemptDialog } from "../../review/review-attempt-dialog";
 import { MemoryTrace } from "./memory-trace";
+import { ProblemVerdict } from "./verdict";
+import { LocalDate } from "@/components/local-date";
+import type { AttemptResult } from "@/generated/prisma/enums";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { differenceInCalendarDays, format, formatDistanceStrict } from "date-fns";
 import { Suspense } from "react";
 import Loading from "../../loading";
 
@@ -23,16 +25,14 @@ export default function ProblemDetailPage(props: PageProps<"/problems/[slug]">) 
   );
 }
 
-type Result = "solved_independently" | "solved_with_hint" | "needed_solution" | "could_not_solve";
-
-const resultTone: Record<Result, string> = {
+const resultTone: Record<AttemptResult, string> = {
   solved_independently: "text-remembered",
   solved_with_hint: "text-foreground",
   needed_solution: "text-foreground",
   could_not_solve: "text-destructive",
 };
 
-const resultDot: Record<Result, string> = {
+const resultDot: Record<AttemptResult, string> = {
   solved_independently: "bg-remembered",
   solved_with_hint: "bg-foreground",
   needed_solution: "bg-foreground",
@@ -59,7 +59,6 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
 
   const recall = userProblem ? estimateRecall(userProblem.lastAttemptDate, userProblem.reviewInterval, now) : null;
   const fading = isFading(recall);
-  const verdict = buildVerdict(userProblem, recall, now);
   const oldestFirst = [...attempts].reverse();
 
   return (
@@ -78,7 +77,14 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
           <h1 className="marker mt-3 text-[clamp(2.25rem,5vw,3.5rem)] leading-[1.05] font-bold tracking-[-0.02em]">
             {fading ? <span className="highlight">{problem.title}</span> : problem.title}
           </h1>
-          {verdict && <p className="mt-4 max-w-[58ch] text-lg text-muted-foreground">{verdict}</p>}
+          <p className="mt-4 max-w-[58ch] text-lg text-muted-foreground">
+            <ProblemVerdict
+              problem={userProblem}
+              serverRecall={recall}
+              lastAttemptDate={userProblem?.lastAttemptDate ?? null}
+              reviewInterval={userProblem?.reviewInterval ?? 1}
+            />
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <a
@@ -131,7 +137,7 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
               </Fact>
               <Fact label="Next review">
                 <span className="num">
-                  {userProblem.nextReviewDate ? format(new Date(userProblem.nextReviewDate), "MMM d, yyyy") : "—"}
+                  {userProblem.nextReviewDate ? <LocalDate date={userProblem.nextReviewDate} pattern="MMM d, yyyy" /> : "—"}
                 </span>
               </Fact>
             </dl>
@@ -159,8 +165,8 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
                 className="grid grid-cols-[1.25rem_1fr] gap-x-5 sm:grid-cols-[7.5rem_1.25rem_1fr] sm:gap-x-6"
               >
                 <div className="hidden pt-0.5 text-right sm:block">
-                  <p className="marker num text-lg leading-tight font-bold">{format(new Date(a.date), "MMM d")}</p>
-                  <p className="num text-sm text-muted-foreground">{format(new Date(a.date), "yyyy, h:mm a")}</p>
+                  <p className="marker num text-lg leading-tight font-bold"><LocalDate date={a.date} pattern="MMM d" /></p>
+                  <p className="num text-sm text-muted-foreground"><LocalDate date={a.date} pattern="yyyy, h:mm a" /></p>
                 </div>
 
                 {/* the rail */}
@@ -171,7 +177,7 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
 
                 <article className={cn("min-w-0", i < attempts.length - 1 && "pb-10")}>
                   <p className="num text-sm text-muted-foreground sm:hidden">
-                    {format(new Date(a.date), "MMM d, yyyy 'at' h:mm a")}
+                    <LocalDate date={a.date} pattern="MMM d, yyyy 'at' h:mm a" />
                   </p>
                   <h3 className="flex flex-wrap items-baseline gap-x-3 text-[1.0625rem] font-semibold">
                     <span>
@@ -233,24 +239,6 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
       </section>
     </div>
   );
-}
-
-function buildVerdict(
-  up: { status: string; totalAttempts: number; nextReviewDate: Date | null } | null,
-  recall: number | null,
-  now: Date
-): string | null {
-  if (!up || recall == null) return "You haven't logged an attempt on this one yet.";
-  const r = `Recall is about ${Math.round(recall * 100)}%.`;
-  if (!up.nextReviewDate) return r;
-  const due = new Date(up.nextReviewDate);
-  if (due <= now) {
-    return `${r} It came due ${formatDistanceStrict(due, now, { addSuffix: true })}, so solve it again before it slips further.`;
-  }
-  const days = differenceInCalendarDays(due, now);
-  const when = days <= 1 ? (days === 0 ? "later today" : "tomorrow") : `on ${format(due, "MMM d")}, in ${days} days`;
-  const mastered = up.status === "mastered" ? ` Mastered after ${up.totalAttempts} tries.` : "";
-  return `${r} The next review is ${when}.${mastered}`;
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {

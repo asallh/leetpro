@@ -1,6 +1,7 @@
+import { LocalDate } from "@/components/local-date";
+import type { AttemptResult } from "@/generated/prisma/enums";
 import { DUE_RECALL } from "@/lib/recall";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 const DAY_MS = 86_400_000;
 const W = 1000;
@@ -10,7 +11,7 @@ type TraceAttempt = {
   id: string;
   date: Date;
   attemptNumber: number;
-  result: "solved_independently" | "solved_with_hint" | "needed_solution" | "could_not_solve";
+  result: AttemptResult;
   prevInterval: number | null;
 };
 
@@ -94,7 +95,7 @@ export function MemoryTrace({
   const dueOverdue = due != null && due <= now.getTime();
   const showDueLabel = dueFrac != null && !dueOverdue && Math.abs(dueFrac - todayFrac) > 0.14;
 
-  const summary = `Estimated recall over ${attempts.length} ${attempts.length === 1 ? "attempt" : "attempts"} since ${format(start, "MMM d, yyyy")}. Each attempt resets it to 100%, and a review comes due when it falls to ${Math.round(DUE_RECALL * 100)}%.`;
+  const summary = `Estimated recall over ${attempts.length} ${attempts.length === 1 ? "attempt" : "attempts"} since ${new Date(start).toISOString().slice(0, 10)}. Each attempt resets it to 100%, and a review comes due when it falls to ${Math.round(DUE_RECALL * 100)}%.`;
 
   return (
     <figure className="m-0">
@@ -208,13 +209,15 @@ export function MemoryTrace({
               className="absolute -bottom-7 -translate-x-1/2 text-sm whitespace-nowrap text-muted-foreground"
               style={{ left: `${dueFrac * 100}%` }}
             >
-              Due {format(due!, "MMM d")}
+              Due <LocalDate date={new Date(due!)} pattern="MMM d" />
             </span>
           </>
         )}
       </div>
       <figcaption className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-        <span>Started {format(start, "MMM d, yyyy")}</span>
+        <span>
+          Started <LocalDate date={new Date(start)} pattern="MMM d, yyyy" />
+        </span>
         <span className="inline-flex items-center gap-2">
           <span aria-hidden="true" className="h-0.5 w-5 bg-highlight" />
           Below {Math.round(DUE_RECALL * 100)}% means it is due for review
