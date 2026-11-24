@@ -26,8 +26,8 @@ export function ListRings({ lists }: { lists: RingList[] }) {
     >
       {lists.map((l, i) => {
         const r = CY - STROKE / 2 - 2 - i * (STROKE + GAP);
-        const solvedDeg = (l.solved / l.total) * SWEEP;
-        const triedDeg = (Math.max(l.attempted, l.solved) / l.total) * SWEEP;
+        const solvedDeg = l.total ? (l.solved / l.total) * SWEEP : 0;
+        const triedDeg = l.total ? (Math.max(l.attempted, l.solved) / l.total) * SWEEP : 0;
         return (
           <g key={l.name}>
             <path

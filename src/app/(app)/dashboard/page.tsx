@@ -6,7 +6,7 @@ import { RecallMeter } from "@/components/recall-meter";
 import { TopicWheel } from "@/components/topic-wheel";
 import { buttonVariants } from "@/components/ui/button";
 import { RESULT_LABELS, buildReviewForecast, formatMinutes } from "@/lib/dashboard-metrics";
-import { buildMemory, buildProgress, buildTopicMap, type TopicRow } from "@/lib/dashboard-insights";
+import { SOLVED_CONFIDENCE, buildMemory, buildProgress, buildTopicMap, type TopicRow } from "@/lib/dashboard-insights";
 import {
   STAGE_LABELS,
   STAGE_ORDER,
@@ -282,7 +282,10 @@ async function TodayContent() {
                       </td>
                       <td className="num py-3 pr-4">
                         <span
-                          className={cn("font-semibold", a.confidence < 3 ? "text-destructive" : "text-foreground")}
+                          className={cn(
+                            "font-semibold",
+                            a.confidence < SOLVED_CONFIDENCE ? "text-destructive" : "text-foreground",
+                          )}
                         >
                           {a.confidence}
                         </span>
@@ -620,7 +623,12 @@ function TopicLedgerRow({ row, stats }: { row: TopicRow; stats: TopicStats | und
         ))}
       </span>
       <span className="num text-sm text-muted-foreground">
-        <span className={cn("font-semibold", conf != null && conf < 3 ? "text-destructive" : "text-foreground")}>
+        <span
+          className={cn(
+            "font-semibold",
+            conf != null && conf < SOLVED_CONFIDENCE ? "text-destructive" : "text-foreground",
+          )}
+        >
           {conf != null ? conf.toFixed(1) : "–"}
         </span>
         <span> of 5</span>
@@ -656,22 +664,27 @@ function TrendChart({ weeks }: { weeks: ReturnType<typeof buildTrend>["series"] 
               <span
                 aria-hidden="true"
                 className="absolute inset-x-0 z-10 border-t border-dashed border-foreground/45"
-                style={{ bottom: "60%" }}
+                style={{ bottom: `${(SOLVED_CONFIDENCE / 5) * 100}%` }}
               />
               <span
                 className={cn(
                   "absolute inset-x-0 bottom-0 rounded-t-md",
                   w.attempts === 0
                     ? "h-0.5 bg-faint"
-                    : (w.avgConfidence ?? 0) < 3
+                    : (w.avgConfidence ?? 0) < SOLVED_CONFIDENCE
                       ? "bg-destructive/70"
                       : "bg-remembered",
                 )}
                 style={w.attempts ? { height: `${Math.max(4, h)}%` } : undefined}
               />
             </span>
-            <span className="mt-2 border-t pt-1.5 text-center text-xs text-muted-foreground">{label}</span>
-            <span className="num text-center text-xs text-faint">{w.attempts ? `${w.attempts} tries` : "–"}</span>
+            <span className="mt-2 border-t pt-1.5 text-center text-xs text-muted-foreground">
+              <span className="sm:hidden">{format(w.weekStart, "M/d")}</span>
+              <span className="max-sm:hidden">{label}</span>
+            </span>
+            <span className="num text-center text-xs text-faint max-sm:hidden">
+              {w.attempts ? `${w.attempts} tries` : "–"}
+            </span>
           </li>
         );
       })}
@@ -683,7 +696,7 @@ function TrendLegend() {
   return (
     <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
       <span className="w-6 border-t border-dashed border-muted-foreground/60" aria-hidden="true" />
-      Confidence 3, where a problem counts as solved. Bars show average confidence that week.
+      Confidence {SOLVED_CONFIDENCE}, where a problem counts as solved. Bars show average confidence that week.
     </p>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { areaRadius, polar, wedgePath } from "@/lib/radial";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,8 @@ const LABEL_R = R + 14;
  */
 export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
   const [active, setActive] = useState<number | null>(null);
+  // Keyboard focus outlives hover: leaving the wheel with the mouse returns to the focused wedge.
+  const focused = useRef<number | null>(null);
   const step = 360 / topics.length;
   const totals = topics.reduce(
     (t, x) => ({
@@ -48,7 +50,7 @@ export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
         className="mx-auto block w-full max-w-[30rem]"
         role="group"
         aria-label="Topic wheel: how much of each topic you've solved"
-        onMouseLeave={() => setActive(null)}
+        onMouseLeave={() => setActive(focused.current)}
       >
         {topics.map((t, i) => {
           const a0 = i * step;
@@ -68,8 +70,15 @@ export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
               role="img"
               aria-label={`${t.topic}: ${t.solved} of ${t.total} solved, ${t.fading} fading, ${t.attempted - t.solved - t.fading} tried. ${t.verdict}.`}
               onMouseEnter={() => setActive(i)}
-              onFocus={() => setActive(i)}
-              onBlur={() => setActive(null)}
+              onFocus={() => {
+                focused.current = i;
+                setActive(i);
+              }}
+              onClick={() => setActive(i)}
+              onBlur={() => {
+                focused.current = null;
+                setActive(null);
+              }}
               className="cursor-default outline-none transition-opacity duration-150"
               style={{ opacity: dim ? 0.35 : 1 }}
             >
@@ -92,11 +101,7 @@ export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
                 strokeWidth={2}
               />
               {active === i && (
-                <path
-                  d={wedgePath(CX, CY, R0, R, a0, a1)}
-                  className="fill-none stroke-foreground/70"
-                  strokeWidth={1.5}
-                />
+                <path d={wedgePath(CX, CY, R0, R, a0, a1)} className="fill-none stroke-primary" strokeWidth={2} />
               )}
               <text
                 x={lp.x}
@@ -104,7 +109,8 @@ export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
                 textAnchor={anchor}
                 dominantBaseline="middle"
                 className={cn(
-                  "text-[11px]",
+                  // Below sm the labels would render near 8px, so the caption names the tapped topic instead.
+                  "text-[11px] max-sm:hidden",
                   active === i
                     ? "fill-foreground font-semibold"
                     : t.attempted > 0
@@ -118,16 +124,16 @@ export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
           );
         })}
 
-        <g aria-live="polite" className="pointer-events-none">
+        <g aria-hidden="true" className="pointer-events-none">
           {a ? (
             <>
               <text x={CX} y={CY - 14} textAnchor="middle" className="marker fill-foreground text-[22px] font-bold">
                 {a.solved}/{a.total}
               </text>
-              <text x={CX} y={CY + 6} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+              <text x={CX} y={CY + 8} textAnchor="middle" className="fill-muted-foreground text-[12px]">
                 {a.avgConfidence != null ? `confidence ${a.avgConfidence.toFixed(1)}` : "not started"}
               </text>
-              <text x={CX} y={CY + 21} textAnchor="middle" className="fill-foreground text-[10px] font-semibold">
+              <text x={CX} y={CY + 25} textAnchor="middle" className="fill-foreground text-[12px] font-semibold">
                 {a.verdict}
               </text>
             </>
@@ -136,7 +142,7 @@ export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
               <text x={CX} y={CY - 6} textAnchor="middle" className="marker fill-foreground text-[26px] font-bold">
                 {totals.solved}
               </text>
-              <text x={CX} y={CY + 14} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+              <text x={CX} y={CY + 16} textAnchor="middle" className="fill-muted-foreground text-[12px]">
                 of {totals.total} solved
               </text>
             </>
@@ -150,7 +156,7 @@ export function TopicWheel({ topics }: { topics: WheelTopic[] }) {
             {a.fading > 0 ? `, ${a.fading} fading` : ""}.
           </>
         ) : (
-          `${totals.started} of ${topics.length} topics started. Hover a topic to read it.`
+          `${totals.started} of ${topics.length} topics started. Tap or hover a topic to read it.`
         )}
       </figcaption>
     </figure>

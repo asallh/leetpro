@@ -1,4 +1,4 @@
-import { startOfWeek, subDays, addDays, startOfDay } from "date-fns";
+import { addDays, differenceInCalendarDays, startOfDay, startOfWeek, subDays } from "date-fns";
 import { estimateRecall, isFading } from "@/lib/recall";
 import { SOLVED_CONFIDENCE, topicOf } from "@/lib/dashboard-insights";
 
@@ -85,7 +85,8 @@ export function stageSentence(c: Record<Stage, number>, total: number): string {
       ? `You've mastered ${c.mastered} of ${plural(total, "problem")}`
       : `You've solved ${strong} of ${plural(total, "problem")} with confidence`;
   const rest: string[] = [];
-  if (c.mastered > 0 && c.holding > 0) rest.push(`${c.holding} more ${c.holding === 1 ? "is" : "are"} solved and holding`);
+  if (c.mastered > 0 && c.holding > 0)
+    rest.push(`${c.holding} more ${c.holding === 1 ? "is" : "are"} solved and holding`);
   if (c.learning > 0) rest.push(`${c.learning} ${c.learning === 1 ? "is" : "are"} still shaky`);
   if (c.fading > 0) rest.push(`${c.fading} ${c.fading === 1 ? "is" : "are"} fading`);
   if (rest.length === 0) return `${lead}.`;
@@ -138,7 +139,10 @@ export function buildTopicStats(tracked: MasteryProblem[], attempts: MasteryAtte
     raw.set(topic, r);
   }
   return new Map(
-    [...raw].map(([k, r]) => [k, { attempts: r.n, unaidedRate: share(r.unaided, r.n), failedRate: share(r.failed, r.n) }])
+    [...raw].map(([k, r]) => [
+      k,
+      { attempts: r.n, unaidedRate: share(r.unaided, r.n), failedRate: share(r.failed, r.n) },
+    ]),
   );
 }
 
@@ -156,7 +160,7 @@ export function struggleScore(row: { avgConfidence: number | null; fading: numbe
 
 export function topicStruggleSentence(
   row: { topic: string; avgConfidence: number | null; fading: number } | undefined,
-  stats: TopicStats | undefined
+  stats: TopicStats | undefined,
 ): string {
   if (!row || row.avgConfidence == null) return "Your weakest topic shows up once you've logged a few attempts.";
   const parts = [`average confidence ${row.avgConfidence.toFixed(1)} out of 5`];
@@ -170,7 +174,14 @@ export function topicStruggleSentence(
 
 /* ------------------------------------------------------------ Stuck problems */
 
-export type StuckProblem = { id: string; title: string; slug: string; difficulty: Difficulty; reason: string; score: number };
+export type StuckProblem = {
+  id: string;
+  title: string;
+  slug: string;
+  difficulty: Difficulty;
+  reason: string;
+  score: number;
+};
 
 /**
  * Problems that keep beating you: the last attempt failed, or you've tried it
@@ -179,7 +190,11 @@ export type StuckProblem = { id: string; title: string; slug: string; difficulty
  */
 export function buildStuckProblems(tracked: MasteryProblem[], attempts: MasteryAttempt[], limit = 5): StuckProblem[] {
   const byProblem = new Map<string, MasteryAttempt[]>();
-  for (const a of attempts) byProblem.set(a.problemId, [...(byProblem.get(a.problemId) ?? []), a]);
+  for (const a of attempts) {
+    const list = byProblem.get(a.problemId);
+    if (list) list.push(a);
+    else byProblem.set(a.problemId, [a]);
+  }
 
   const out: StuckProblem[] = [];
   for (const t of tracked) {
@@ -226,7 +241,8 @@ export function buildTrend(attempts: MasteryAttempt[], now: Date, weeks = 8) {
   for (const a of attempts) {
     const t = startOfDay(new Date(a.date)).getTime();
     if (t < first || t >= end) continue;
-    const b = buckets[Math.floor((t - first) / (7 * 86_400_000))];
+    // Count calendar days, not milliseconds: a week that crosses a DST change is an hour short or long.
+    const b = buckets[Math.floor(differenceInCalendarDays(t, first) / 7)];
     if (!b) continue;
     b.conf.push(a.confidence);
     if (a.result === UNAIDED) b.unaided++;
@@ -253,7 +269,7 @@ export function buildTrend(attempts: MasteryAttempt[], now: Date, weeks = 8) {
 export function trendSentence(
   prev: { n: number; conf: number | null; un: number | null },
   cur: { n: number; conf: number | null; un: number | null },
-  weeks: number
+  weeks: number,
 ): string {
   if (cur.n === 0 && prev.n === 0) return "No attempts in the last two months yet.";
   if (cur.n === 0) return `You haven't logged an attempt in ${weeks} weeks.`;
