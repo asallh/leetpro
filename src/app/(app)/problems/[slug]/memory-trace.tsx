@@ -1,9 +1,9 @@
 import { LocalDate } from "@/components/local-date";
 import type { AttemptResult } from "@/generated/prisma/enums";
+import { buildTrace, type TracePoint } from "@/lib/memory-trace";
 import { DUE_RECALL } from "@/lib/recall";
 import { cn } from "@/lib/utils";
 
-const DAY_MS = 86_400_000;
 const W = 1000;
 const H = 100;
 
@@ -37,57 +37,18 @@ export function MemoryTrace({
 }) {
   if (attempts.length === 0) return null;
 
-  const start = new Date(attempts[0].date).getTime();
-  const last = new Date(attempts[attempts.length - 1].date).getTime();
+  const { start, end, past, future, clusters } = buildTrace({ attempts, currentInterval, nextReviewDate, now });
   const due = nextReviewDate ? new Date(nextReviewDate).getTime() : null;
-  const rawEnd = Math.max(now.getTime(), due ?? 0, last + DAY_MS);
-  // A little room after the last thing on the axis so its label is not on the edge.
-  const end = rawEnd + Math.max(DAY_MS / 2, (rawEnd - start) * 0.04);
   const span = end - start;
 
   const x = (t: number) => ((t - start) / span) * W;
   const y = (r: number) => (1 - r) * H;
   const pct = (t: number) => `${((t - start) / span) * 100}%`;
+  const pt = (p: TracePoint) => `${x(p.t).toFixed(1)},${y(p.r).toFixed(2)}`;
 
-  // One decay segment per attempt, running to the next attempt (or the end of the axis).
-  const past: string[] = [];
-  let future = "";
-  attempts.forEach((a, i) => {
-    const t0 = new Date(a.date).getTime();
-    const t1 = i < attempts.length - 1 ? new Date(attempts[i + 1].date).getTime() : end;
-    const interval = Math.max(1, i < attempts.length - 1 ? (attempts[i + 1].prevInterval ?? 1) : currentInterval);
-    const stability = interval / Math.log(1 / DUE_RECALL);
-    const recallAt = (t: number) => Math.min(1, Math.exp(-(t - t0) / DAY_MS / stability));
-
-    const sample = (from: number, to: number) => {
-      const steps = 48;
-      const pts: string[] = [];
-      for (let s = 0; s <= steps; s++) {
-        const t = from + ((to - from) * s) / steps;
-        pts.push(`${x(t).toFixed(1)},${y(recallAt(t)).toFixed(2)}`);
-      }
-      return pts;
-    };
-
-    const isLast = i === attempts.length - 1;
-    // Never sample backwards, even if an attempt is dated after `now` (clock skew, seeded data).
-    const pastEnd = Math.max(t0, isLast ? Math.min(t1, now.getTime()) : t1);
-    // The drop back up to 100% at each new attempt is part of the line.
-    const head = i > 0 ? [`${x(t0).toFixed(1)},${y(1).toFixed(2)}`] : [];
-    past.push([...head, ...sample(t0, pastEnd)].join(" "));
-    if (isLast && t1 > now.getTime()) future = sample(now.getTime(), t1).join(" ");
-  });
-  const pastPath = past.map((p, i) => (i === 0 ? `M${p.replace(/ /g, " L")}` : `L${p.replace(/ /g, " L")}`)).join(" ");
-  const futurePath = future ? `M${future.replace(/ /g, " L")}` : "";
-
-  // Group attempts whose marks would overlap (closer than ~3% of the axis).
-  const clusters: TraceAttempt[][] = [];
-  for (const a of attempts) {
-    const group = clusters[clusters.length - 1];
-    const t = new Date(a.date).getTime();
-    if (group && (t - new Date(group[0].date).getTime()) / span < 0.03) group.push(a);
-    else clusters.push([a]);
-  }
+  // Each run after the first starts with the jump back up to 100% at its attempt.
+  const pastPath = past.map((run, i) => `${i === 0 ? "M" : "L"}${run.map(pt).join(" L")}`).join(" ");
+  const futurePath = future.length > 0 ? `M${future.map(pt).join(" L")}` : "";
 
   const lineY = y(DUE_RECALL);
   const todayFrac = (now.getTime() - start) / span;
