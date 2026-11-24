@@ -101,7 +101,7 @@ async function TodayContent() {
     prisma.attempt.findMany({
       where: { userId },
       orderBy: { date: "desc" },
-      take: 8,
+      take: 6,
       select: {
         id: true,
         date: true,
@@ -180,58 +180,124 @@ async function TodayContent() {
       </header>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-14 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        {/* Tonight */}
-        <section aria-labelledby="tonight">
-          <h2 id="tonight" className="mb-4 text-xl font-semibold">
-            Tonight
-          </h2>
-          {tonight.length === 0 ? (
-            <p className="text-muted-foreground">
-              You&apos;ve tracked every problem in the catalog. Keep up with reviews as they come due.
-            </p>
-          ) : (
-            <ul className="divide-y rounded-2xl border bg-card shadow-[0_16px_36px_-16px_rgba(0,0,0,0.55)]">
-              {tonight.map((t, i) => (
-                <li key={t.key} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 sm:px-6">
-                  <div className="min-w-0 flex-1 basis-64">
-                    <p className="text-[1.0625rem] font-semibold">
-                      <span className={t.action === "Review" ? "highlight" : undefined}>{t.title}</span>
-                    </p>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
-                      <DifficultyBadge difficulty={t.difficulty} />
-                      <span className="truncate">{t.note}</span>
-                    </p>
-                  </div>
-                  {t.recall != null ? (
-                    <RecallMeter recall={t.recall} />
-                  ) : (
-                    <span className="text-sm text-muted-foreground">New problem</span>
-                  )}
-                  <a
-                    href={t.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      buttonVariants({
-                        variant: i === 0 ? "default" : "outline",
-                        size: "lg",
-                      }),
-                      "w-24 rounded-lg",
+        <div>
+          {/* Tonight */}
+          <section aria-labelledby="tonight">
+            <h2 id="tonight" className="mb-4 text-xl font-semibold">
+              Tonight
+            </h2>
+            {tonight.length === 0 ? (
+              <p className="text-muted-foreground">
+                You&apos;ve tracked every problem in the catalog. Keep up with reviews as they come due.
+              </p>
+            ) : (
+              <ul className="divide-y rounded-2xl border bg-card shadow-[0_16px_36px_-16px_rgba(0,0,0,0.55)]">
+                {tonight.map((t, i) => (
+                  <li key={t.key} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 sm:px-6">
+                    <div className="min-w-0 flex-1 basis-64">
+                      <p className="text-[1.0625rem] font-semibold">
+                        <span className={t.action === "Review" ? "highlight" : undefined}>{t.title}</span>
+                      </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+                        <DifficultyBadge difficulty={t.difficulty} />
+                        <span className="truncate">{t.note}</span>
+                      </p>
+                    </div>
+                    {t.recall != null ? (
+                      <RecallMeter recall={t.recall} />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">New problem</span>
                     )}
-                  >
-                    {t.action}
-                    <span className="sr-only"> {t.title} on LeetCode</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-          {rec.reviewsRemaining > 0 && (
-            <Link href="/review" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
-              {rec.reviewsRemaining} more {rec.reviewsRemaining === 1 ? "review" : "reviews"} waiting
-            </Link>
-          )}
-        </section>
+                    <a
+                      href={t.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        buttonVariants({
+                          variant: i === 0 ? "default" : "outline",
+                          size: "lg",
+                        }),
+                        "w-24 rounded-lg",
+                      )}
+                    >
+                      {t.action}
+                      <span className="sr-only"> {t.title} on LeetCode</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {rec.reviewsRemaining > 0 && (
+              <Link href="/review" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
+                {rec.reviewsRemaining} more {rec.reviewsRemaining === 1 ? "review" : "reviews"} waiting
+              </Link>
+            )}
+          </section>
+          {/* Recently logged */}
+          <section aria-labelledby="recent" className="mt-12">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <h2 id="recent" className="text-xl font-semibold">
+                Recently logged
+              </h2>
+              <Link href="/problems" className="text-sm font-medium text-primary hover:underline">
+                See every problem
+              </Link>
+            </div>
+            {recentAttempts.length === 0 ? (
+              <p className="mt-2 text-muted-foreground">Solve a problem on LeetCode and the extension logs it here.</p>
+            ) : (
+              <table className="mt-4 w-full text-left text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-2 pr-4 font-normal">Date</th>
+                    <th className="py-2 pr-4 font-normal">Problem</th>
+                    <th className="hidden py-2 pr-4 font-normal sm:table-cell">Result</th>
+                    <th className="py-2 pr-4 font-normal">Confidence</th>
+                    <th className="hidden py-2 font-normal md:table-cell">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {recentAttempts.map((a) => (
+                    <tr key={a.id}>
+                      <td className="num py-3 pr-4 whitespace-nowrap text-muted-foreground">
+                        {format(a.date, "MMM d")}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <Link href={`/problems/${a.problem.slug}`} className="font-medium hover:underline">
+                          {a.problem.title}
+                        </Link>
+                        <DifficultyBadge difficulty={a.problem.difficulty} className="ml-3 text-xs" />
+                      </td>
+                      <td
+                        className={cn(
+                          "hidden py-3 pr-4 sm:table-cell",
+                          a.result === "solved_independently"
+                            ? "text-remembered"
+                            : a.result === "solved_with_hint"
+                              ? "text-muted-foreground"
+                              : "text-destructive",
+                        )}
+                      >
+                        {RESULT_LABELS[a.result]}
+                      </td>
+                      <td className="num py-3 pr-4">
+                        <span
+                          className={cn("font-semibold", a.confidence < 3 ? "text-destructive" : "text-foreground")}
+                        >
+                          {a.confidence}
+                        </span>
+                        <span className="text-muted-foreground"> of 5</span>
+                      </td>
+                      <td className="num hidden py-3 text-muted-foreground md:table-cell">
+                        {formatMinutes(a.timeMinutes)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        </div>
 
         {/* This week */}
         <section aria-labelledby="week">
@@ -518,67 +584,6 @@ async function TodayContent() {
           </Link>
         </section>
       </div>
-
-      {/* Recently logged */}
-      <section aria-labelledby="recent" className="border-t pt-12">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-          <h2 id="recent" className="text-xl font-semibold">
-            Recently logged
-          </h2>
-          <Link href="/problems" className="text-sm font-medium text-primary hover:underline">
-            See every problem
-          </Link>
-        </div>
-        {recentAttempts.length === 0 ? (
-          <p className="mt-2 text-muted-foreground">Solve a problem on LeetCode and the extension logs it here.</p>
-        ) : (
-          <table className="mt-4 w-full text-left text-sm">
-            <thead className="text-xs text-muted-foreground">
-              <tr className="border-b">
-                <th className="py-2 pr-4 font-normal">Date</th>
-                <th className="py-2 pr-4 font-normal">Problem</th>
-                <th className="hidden py-2 pr-4 font-normal sm:table-cell">Result</th>
-                <th className="py-2 pr-4 font-normal">Confidence</th>
-                <th className="hidden py-2 font-normal md:table-cell">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {recentAttempts.map((a) => (
-                <tr key={a.id}>
-                  <td className="num py-3 pr-4 whitespace-nowrap text-muted-foreground">{format(a.date, "MMM d")}</td>
-                  <td className="py-3 pr-4">
-                    <Link href={`/problems/${a.problem.slug}`} className="font-medium hover:underline">
-                      {a.problem.title}
-                    </Link>
-                    <DifficultyBadge difficulty={a.problem.difficulty} className="ml-3 text-xs" />
-                  </td>
-                  <td
-                    className={cn(
-                      "hidden py-3 pr-4 sm:table-cell",
-                      a.result === "solved_independently"
-                        ? "text-remembered"
-                        : a.result === "solved_with_hint"
-                          ? "text-muted-foreground"
-                          : "text-destructive",
-                    )}
-                  >
-                    {RESULT_LABELS[a.result]}
-                  </td>
-                  <td className="num py-3 pr-4">
-                    <span className={cn("font-semibold", a.confidence < 3 ? "text-destructive" : "text-foreground")}>
-                      {a.confidence}
-                    </span>
-                    <span className="text-muted-foreground"> of 5</span>
-                  </td>
-                  <td className="num hidden py-3 text-muted-foreground md:table-cell">
-                    {formatMinutes(a.timeMinutes)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
     </div>
   );
 }
