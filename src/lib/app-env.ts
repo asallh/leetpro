@@ -7,6 +7,15 @@ export function isDevEnv(env: string | undefined = process.env.ENV): boolean {
   return (env ?? "").trim().toLowerCase() === "dev";
 }
 
+/** The environment pill in the nav: none in production (ENV unset). */
+export type EnvPill = "dev" | "test";
+
+/** ENV=dev or ENV=test (any case) get a pill; unset or anything else, none. */
+export function envPill(env: string | undefined = process.env.ENV): EnvPill | null {
+  const value = (env ?? "").trim().toLowerCase();
+  return value === "dev" || value === "test" ? value : null;
+}
+
 /**
  * The extension's Chrome Web Store listing, from CHROME_WEB_STORE_URL. Only
  * an https URL on chromewebstore.google.com is accepted; anything else is

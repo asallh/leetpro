@@ -6,6 +6,14 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { UserMenu } from "./user-menu";
 import { Logo } from "./logo";
+import type { EnvPill } from "@/lib/app-env";
+
+// Which deployment you're looking at: green for dev, purple for test, and
+// nothing in production.
+const ENV_PILL_STYLES: Record<EnvPill, string> = {
+  dev: "border-remembered text-remembered",
+  test: "border-[#C084FC] text-[#C084FC]",
+};
 
 const navItems = [
   { label: "Today", href: "/dashboard" },
@@ -14,7 +22,7 @@ const navItems = [
   { label: "Problem Sets", href: "/problem-sets" },
 ];
 
-export function Nav({ showDevPill = false }: { showDevPill?: boolean }) {
+export function Nav({ envPill = null }: { envPill?: EnvPill | null }) {
   const pathname = usePathname();
 
   return (
@@ -24,9 +32,9 @@ export function Nav({ showDevPill = false }: { showDevPill?: boolean }) {
           <Link href="/dashboard" aria-label="LeetPro, today" className="rounded-md">
             <Logo />
           </Link>
-          {showDevPill ? (
-            <Badge variant="outline" className="border-[#C084FC] bg-transparent text-[11px] text-[#C084FC]">
-              dev
+          {envPill ? (
+            <Badge variant="outline" className={cn("bg-transparent text-[11px]", ENV_PILL_STYLES[envPill])}>
+              {envPill}
             </Badge>
           ) : null}
         </div>

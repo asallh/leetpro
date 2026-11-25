@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chromeWebStoreUrl, isDevEnv } from "./app-env";
+import { chromeWebStoreUrl, envPill, isDevEnv } from "./app-env";
 
 describe("isDevEnv", () => {
   it("is true for ENV=dev in any case", () => {
@@ -33,5 +33,20 @@ describe("chromeWebStoreUrl", () => {
     expect(chromeWebStoreUrl("not a url")).toBeNull();
     expect(chromeWebStoreUrl("http://chromewebstore.google.com/detail/x")).toBeNull();
     expect(chromeWebStoreUrl("https://evil.example/detail/x")).toBeNull();
+  });
+});
+
+describe("envPill", () => {
+  it("shows dev and test in any case", () => {
+    expect(envPill("dev")).toBe("dev");
+    expect(envPill("DEV")).toBe("dev");
+    expect(envPill(" Test ")).toBe("test");
+  });
+
+  it("shows nothing in production, where ENV is unset", () => {
+    expect(envPill(undefined)).toBeNull();
+    expect(envPill("")).toBeNull();
+    expect(envPill("prod")).toBeNull();
+    expect(envPill("staging")).toBeNull();
   });
 });
