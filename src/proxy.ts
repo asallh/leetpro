@@ -3,7 +3,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { GATE_COOKIE, gateEnabled, isValidGateToken } from "@/lib/site-gate";
 
 const AUTH_PAGES = ["/sign-in", "/sign-up"];
-const APP_PREFIXES = ["/dashboard", "/problems", "/review", "/problem-sets"];
+const APP_PREFIXES = ["/dashboard", "/problems", "/review", "/problem-sets", "/settings"];
 
 function isAppPage(pathname: string) {
   return APP_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
