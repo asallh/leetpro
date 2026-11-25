@@ -1,6 +1,6 @@
 import { getRequiredSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
-import { chromeWebStoreUrl, isDevEnv } from "@/lib/app-env";
+import { chromeWebStoreUrl, envPill } from "@/lib/app-env";
 import { DEV_EXTENSION_ID } from "@/lib/extension-package";
 import { describeUserAgent } from "@/lib/user-agent";
 import { PageHeader } from "@/components/page-header";
@@ -60,10 +60,11 @@ async function SettingsContent() {
   // Same rule as the delete hook in auth.ts: a credential row with a password.
   // Only this boolean reaches the client, never the hash.
   const hasPassword = accounts.some((a) => a.providerId === "credential" && Boolean(a.password));
-  // ENV=dev offers a zipped dev build; everywhere else the extension comes
-  // from the Chrome Web Store, and the section hides until that link is set.
-  const devExtension = isDevEnv();
-  const storeUrl = devExtension ? null : chromeWebStoreUrl();
+  // ENV=dev and ENV=test offer a zipped pre-release build; in production the
+  // extension comes from the Chrome Web Store, and the section hides until
+  // that link is set.
+  const extensionEnv = envPill();
+  const storeUrl = extensionEnv ? null : chromeWebStoreUrl();
   const initials =
     user.name
       .split(" ")
@@ -132,10 +133,10 @@ async function SettingsContent() {
           <SignOutOthersButton disabled={sessions.length <= 1} />
         </Section>
 
-        {devExtension && (
+        {extensionEnv && (
           <Section
             title="Chrome extension"
-            description="A development build that talks to this site. It is only offered while the app runs with ENV=dev."
+            description={`A ${extensionEnv === "test" ? "test" : "development"} build that talks to this site. It is only offered while the app runs with ENV=dev or ENV=test.`}
           >
             <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
               <li>Download the zip and unzip it.</li>
