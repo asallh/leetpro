@@ -241,6 +241,7 @@ export function DeleteAccountDialog({
     if (error) {
       setDeleting(false);
       if (error.code === "INVALID_PASSWORD") setError("That password is wrong. Nothing was deleted.");
+      else if (error.code === "PASSWORD_REQUIRED") setError("Enter your password to delete your account.");
       else if (error.code === "SESSION_EXPIRED")
         setError("For your safety, sign out and sign back in, then delete your account within a day of signing in.");
       else setError(error.message ?? "Couldn't delete your account. Nothing was removed.");

@@ -7,6 +7,7 @@ import { join, relative, sep } from "node:path";
 import { strToU8, zipSync } from "fflate";
 import {
   DEV_EXTENSION_ID,
+  isPackagedFile,
   packagedConfig,
   packagedManifest,
 } from "../../scripts/extension-manifest.mjs";
@@ -14,8 +15,6 @@ import {
 export { DEV_EXTENSION_ID };
 
 export type ExtensionFiles = Record<string, Uint8Array>;
-
-const IGNORED = /(^|\/)(\.DS_Store|[^/]*\.zip)$/;
 
 /**
  * Rewrites manifest.json and config.js for `apiBase` and `env`, and zips the
@@ -31,7 +30,7 @@ export function buildExtensionZip(
 
   const out: ExtensionFiles = {};
   for (const [path, bytes] of Object.entries(files)) {
-    if (!IGNORED.test(path)) out[path] = bytes;
+    if (isPackagedFile(path)) out[path] = bytes;
   }
   out["manifest.json"] = strToU8(JSON.stringify(manifest, null, 2) + "\n");
   out["config.js"] = strToU8(packagedConfig({ apiBase, env }));

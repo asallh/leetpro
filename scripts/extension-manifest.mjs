@@ -13,6 +13,17 @@ import { createHash } from "node:crypto";
 export const DEV_EXTENSION_KEY =
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw3A8UUI6Lk7mT5YPxIKZbmt4PVo7QGs4b+8QIXgN0M0YNx0YhAUeAKmXOTsfgGTCY7sw3T0XN2R/rwQJC08hHOwlJJsbskpQcE830Im//3FAIJ/HbUAlzN1MjkOtZxw3v1azEZDvpDBHhka8errcjGLZbbmdLj9iCKQyj/PS1GtvV4V9Fs75v+EFhNnrxBS+j+9npd1N2MmBQUI1/C1PXH7u3NPwT6lJdzstQ5Ckeli9uiaIMKZjGKe+rTXAHVxdDI5iRwHPkhqWHQ6kYcToskWq9lz8Va0VJmPqI2iFnuOo4KqjSZbrGACP0PIz/6/6rNRZJSjMlcU1h9B2VoGIOQIDAQAB";
 
+/**
+ * Whether a file under extension/ belongs in a packaged build. An allowlist,
+ * so a signing key, .env or editor backup kept in the folder never ships:
+ * only the extension's own file types, and nothing under a dotfile or
+ * dot-directory. `path` is relative to extension/, with forward slashes.
+ */
+export function isPackagedFile(path) {
+  if (path.split("/").some((part) => part.startsWith("."))) return false;
+  return /\.(js|json|html|css|png)$/.test(path);
+}
+
 /** True for "prod" in any case; everything else is a dev build. */
 export function isProdEnv(env) {
   return String(env ?? "").toLowerCase() === "prod";

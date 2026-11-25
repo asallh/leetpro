@@ -45,7 +45,7 @@ async function SettingsContent() {
     }),
     prisma.account.findMany({
       where: { userId },
-      select: { providerId: true, createdAt: true },
+      select: { providerId: true, createdAt: true, password: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.session.findMany({
@@ -57,7 +57,9 @@ async function SettingsContent() {
     prisma.userProblem.count({ where: { userId } }),
   ]);
 
-  const hasPassword = accounts.some((a) => a.providerId === "credential");
+  // Same rule as the delete hook in auth.ts: a credential row with a password.
+  // Only this boolean reaches the client, never the hash.
+  const hasPassword = accounts.some((a) => a.providerId === "credential" && Boolean(a.password));
   // ENV=dev offers a zipped dev build; everywhere else the extension comes
   // from the Chrome Web Store, and the section hides until that link is set.
   const devExtension = isDevEnv();
@@ -74,7 +76,7 @@ async function SettingsContent() {
     <div className="space-y-10">
       <PageHeader
         title="Settings"
-        description="Your profile, how you sign in, and the data LeetPro keeps for you."
+        description="Your profile, how you sign in, and your account."
       />
 
       <div className="divide-y rounded-2xl border bg-card">
@@ -177,34 +179,6 @@ async function SettingsContent() {
             </a>
           </Section>
         )}
-
-        <Section
-          title="Your data"
-          description={`LeetPro holds ${attemptCount} ${attemptCount === 1 ? "attempt" : "attempts"} across ${problemCount} ${problemCount === 1 ? "problem" : "problems"} for you. Download a copy any time.`}
-        >
-          <div className="flex flex-wrap gap-3">
-            <a
-              href="/api/account/export?format=csv"
-              download
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "rounded-lg")}
-            >
-              <Download />
-              Attempts as CSV
-            </a>
-            <a
-              href="/api/account/export?format=json"
-              download
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "rounded-lg")}
-            >
-              <Download />
-              Everything as JSON
-            </a>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            The CSV has one row per attempt and opens in any spreadsheet. The JSON also holds your profile, sign-in
-            methods and review schedule.
-          </p>
-        </Section>
       </div>
 
       <section
@@ -219,8 +193,7 @@ async function SettingsContent() {
         <div className="space-y-4">
           <p className="max-w-[60ch] text-muted-foreground">
             Permanently deletes your account, every attempt, note and solution you logged, your review schedule and your
-            sign-in methods, and signs out every device. This cannot be undone, so download your data first if you
-            want to keep it.
+            sign-in methods, and signs out every device. This cannot be undone.
           </p>
           <DeleteAccountDialog
             email={user.email}

@@ -5,8 +5,10 @@
 //   pnpm extension:build --api-base https://leetpro.example.com --env prod
 //   LEETPRO_API_BASE=https://leetpro.example.com ENV=prod pnpm extension:build
 //
-// --env (or ENV) works like the web app's ENV: anything but "prod" builds a
-// dev extension, named "LeetPro (Dev)" with a DEV pill and a stamped icon.
+// --env (or ENV): anything but "prod", including leaving it out, builds a dev
+// extension, named "LeetPro (Dev)" with a DEV pill and a stamped icon. This
+// differs from the web app, which treats an unset ENV as production, so a
+// Web Store build always needs an explicit --env prod.
 //
 // Output: dist/extension/ (load unpacked to test) and
 //         dist/leetpro-extension-<version>.zip (upload to the Web Store).
@@ -14,10 +16,10 @@
 // The checked-in extension/ folder stays pointed at http://localhost:3000.
 
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { cpSync, existsSync, lstatSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEV_EXTENSION_ID, isProdEnv, packagedConfig, packagedManifest } from "./extension-manifest.mjs";
+import { DEV_EXTENSION_ID, isPackagedFile, isProdEnv, packagedConfig, packagedManifest } from "./extension-manifest.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = join(root, "extension");
@@ -69,7 +71,15 @@ const isProd = isProdEnv(env);
 rmSync(out, { recursive: true, force: true });
 cpSync(src, out, {
   recursive: true,
-  filter: (path) => !/(^|\/)(\.DS_Store|.*\.zip)$/.test(path),
+  // Directories pass so cpSync descends; files must be on the allowlist.
+  // Symlinks never ship: they could point at a key outside the folder.
+  filter: (path) => {
+    const rel = relative(src, path).split(sep).join("/");
+    if (rel === "") return true;
+    const st = lstatSync(path);
+    if (st.isSymbolicLink()) return false;
+    return st.isDirectory() ? !rel.split("/").some((p) => p.startsWith(".")) : isPackagedFile(rel);
+  },
 });
 
 // --- config.js and manifest ---------------------------------------------------

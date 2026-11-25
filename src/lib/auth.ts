@@ -1,9 +1,10 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware, getAuthoritativeSessionFromCtx } from "better-auth/api";
 import { prisma } from "./db";
 import { GATE_COOKIE, gateEnabled, isValidGateToken } from "./site-gate";
+import { deleteNeedsPassword, unlinkRemovesPassword } from "./delete-guard";
 
 function readCookie(header: string | null | undefined, name: string): string | undefined {
   if (!header) return undefined;
@@ -53,11 +54,38 @@ export const auth = betterAuth({
     },
   },
   user: {
-    // Settings > Delete account. Better Auth asks for the password when the
-    // account has one; otherwise the session must be fresh (signed in within
-    // session.freshAge, a day by default). Deleting the user row cascades to
-    // sessions, linked accounts, attempts and progress in Postgres.
+    // Settings > Delete account. Accounts with a password must send it (the
+    // before-hook below enforces that, since Better Auth alone only checks a
+    // password it is given). Accounts without one need a fresh session,
+    // signed in within session.freshAge (a day by default). Deleting the user
+    // row cascades to sessions, linked accounts, attempts and progress.
     deleteUser: { enabled: true },
+  },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/delete-user" && ctx.path !== "/unlink-account") return;
+      // The same authoritative read the endpoints do, so the two can't
+      // disagree. No session: the endpoint itself answers 401.
+      const session = await getAuthoritativeSessionFromCtx(ctx);
+      if (!session) return;
+      if (ctx.path === "/unlink-account") {
+        const accounts = await ctx.context.internalAdapter.findAccounts(session.user.id);
+        if (unlinkRemovesPassword(ctx.body, accounts)) {
+          throw new APIError("BAD_REQUEST", {
+            message: "Your password sign-in can't be removed.",
+            code: "CANNOT_UNLINK_PASSWORD",
+          });
+        }
+        return;
+      }
+      const credential = await ctx.context.internalAdapter.findCredentialAccount(session.user.id);
+      if (deleteNeedsPassword(ctx.body, Boolean(credential?.password))) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Enter your password to delete your account.",
+          code: "PASSWORD_REQUIRED",
+        });
+      }
+    }),
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7,

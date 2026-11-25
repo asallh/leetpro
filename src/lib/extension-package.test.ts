@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { strToU8, unzipSync, strFromU8 } from "fflate";
 import { buildExtensionZip, DEV_EXTENSION_ID } from "./extension-package";
-import { DEV_EXTENSION_KEY, extensionIdFromKey, packagedManifest } from "../../scripts/extension-manifest.mjs";
+import {
+  DEV_EXTENSION_KEY,
+  extensionIdFromKey,
+  isPackagedFile,
+  packagedManifest,
+} from "../../scripts/extension-manifest.mjs";
 
 const manifest = {
   manifest_version: 3,
@@ -17,6 +22,11 @@ function files() {
     "popup/popup.js": strToU8("console.log('popup');"),
     ".DS_Store": strToU8("junk"),
     "old.zip": strToU8("junk"),
+    "key.pem": strToU8("secret"),
+    ".env": strToU8("secret"),
+    ".git/config": strToU8("secret"),
+    "popup/popup.js~": strToU8("backup"),
+    "icons/icon16.png": strToU8("png"),
   };
 }
 
@@ -43,6 +53,20 @@ describe("packagedManifest", () => {
   });
 });
 
+describe("isPackagedFile", () => {
+  it("keeps the extension's own file types", () => {
+    for (const p of ["manifest.json", "config.js", "popup/popup.html", "popup/popup.css", "icons/icon16.png"]) {
+      expect(isPackagedFile(p)).toBe(true);
+    }
+  });
+
+  it("never ships keys, env files, dotfiles or backups", () => {
+    for (const p of ["key.pem", "dev.key", ".env", ".env.local", ".DS_Store", ".git/config", "content/.hidden.js", "a.js~", "old.zip"]) {
+      expect(isPackagedFile(p)).toBe(false);
+    }
+  });
+});
+
 describe("extensionIdFromKey", () => {
   it("is 32 letters from a to p", () => {
     expect(extensionIdFromKey(DEV_EXTENSION_KEY)).toMatch(/^[a-p]{32}$/);
@@ -53,9 +77,10 @@ describe("extensionIdFromKey", () => {
 describe("buildExtensionZip", () => {
   const zip = unzipSync(buildExtensionZip(files(), { apiBase: "https://dev.leetpro.app", env: "dev" }));
 
-  it("nests everything in a leetpro-extension folder and skips junk", () => {
+  it("nests everything in a leetpro-extension folder and ships only allowlisted files", () => {
     expect(Object.keys(zip).sort()).toEqual([
       "leetpro-extension/config.js",
+      "leetpro-extension/icons/icon16.png",
       "leetpro-extension/manifest.json",
       "leetpro-extension/popup/popup.js",
     ]);

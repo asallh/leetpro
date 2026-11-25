@@ -2,7 +2,6 @@ import { Nav } from "@/components/nav";
 import { envPill } from "@/lib/app-env";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-
   return (
     <>
       <Nav envPill={envPill()} />
