@@ -1,13 +1,23 @@
 // Which deployment this is, from ENV (the same variable the dev pill and the
 // extension build read). Dev-only features check isDevEnv(), which is strict:
-// only ENV=dev (any case) counts, so a production deploy that forgot to set
-// ENV never exposes them. With ENV unset, local `next dev` still counts.
+// only ENV=dev (any case) counts. Unset, empty or any other value is treated
+// as production, so a deploy that forgets ENV never exposes dev features.
 
-export function isDevEnv(
-  env: string | undefined = process.env.ENV,
-  nodeEnv: string | undefined = process.env.NODE_ENV,
-): boolean {
-  const value = (env ?? "").trim().toLowerCase();
-  if (value) return value === "dev";
-  return nodeEnv === "development";
+export function isDevEnv(env: string | undefined = process.env.ENV): boolean {
+  return (env ?? "").trim().toLowerCase() === "dev";
+}
+
+/**
+ * The extension's Chrome Web Store listing, from CHROME_WEB_STORE_URL. Only
+ * an https URL on chromewebstore.google.com is accepted; anything else is
+ * ignored so a typo can't send people somewhere unexpected.
+ */
+export function chromeWebStoreUrl(raw: string | undefined = process.env.CHROME_WEB_STORE_URL): string | null {
+  if (!raw?.trim()) return null;
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === "https:" && url.hostname === "chromewebstore.google.com" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

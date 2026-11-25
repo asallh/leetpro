@@ -1,6 +1,6 @@
 import { getRequiredSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/db";
-import { isDevEnv } from "@/lib/app-env";
+import { chromeWebStoreUrl, isDevEnv } from "@/lib/app-env";
 import { DEV_EXTENSION_ID } from "@/lib/extension-package";
 import { describeUserAgent } from "@/lib/user-agent";
 import { PageHeader } from "@/components/page-header";
@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { Suspense } from "react";
 import Loading from "../loading";
 import {
@@ -58,7 +58,10 @@ async function SettingsContent() {
   ]);
 
   const hasPassword = accounts.some((a) => a.providerId === "credential");
-  const showExtension = isDevEnv();
+  // ENV=dev offers a zipped dev build; everywhere else the extension comes
+  // from the Chrome Web Store, and the section hides until that link is set.
+  const devExtension = isDevEnv();
+  const storeUrl = devExtension ? null : chromeWebStoreUrl();
   const initials =
     user.name
       .split(" ")
@@ -127,7 +130,7 @@ async function SettingsContent() {
           <SignOutOthersButton disabled={sessions.length <= 1} />
         </Section>
 
-        {showExtension && (
+        {devExtension && (
           <Section
             title="Chrome extension"
             description="A development build that talks to this site. It is only offered while the app runs with ENV=dev."
@@ -155,6 +158,23 @@ async function SettingsContent() {
                 Extension ID <code className="text-foreground">{DEV_EXTENSION_ID}</code>
               </span>
             </div>
+          </Section>
+        )}
+
+        {storeUrl && (
+          <Section
+            title="Chrome extension"
+            description="Logs your LeetCode and NeetCode attempts as you solve them, with your recall shown on each problem."
+          >
+            <a
+              href={storeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "rounded-lg")}
+            >
+              <ExternalLink />
+              Get it on the Chrome Web Store
+            </a>
           </Section>
         )}
 
