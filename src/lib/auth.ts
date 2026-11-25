@@ -52,6 +52,13 @@ export const auth = betterAuth({
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
     },
   },
+  user: {
+    // Settings > Delete account. Better Auth asks for the password when the
+    // account has one; otherwise the session must be fresh (signed in within
+    // session.freshAge, a day by default). Deleting the user row cascades to
+    // sessions, linked accounts, attempts and progress in Postgres.
+    deleteUser: { enabled: true },
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
