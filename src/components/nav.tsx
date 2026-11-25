@@ -28,8 +28,9 @@ export function Nav({ envPill = null }: { envPill?: EnvPill | null }) {
   return (
     <header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard" aria-label="LeetPro, today" className="rounded-md">
+        <div className="flex items-center gap-3">
+          {/* flex so the link is exactly the logo's height and the pill centres on it */}
+          <Link href="/dashboard" aria-label="LeetPro, today" className="flex items-center rounded-md">
             <Logo />
           </Link>
           {envPill ? (
