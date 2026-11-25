@@ -1,24 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chromeWebStoreUrl, envPill, isDevEnv } from "./app-env";
-
-describe("isDevEnv", () => {
-  it("is true for ENV=dev in any case", () => {
-    expect(isDevEnv("dev")).toBe(true);
-    expect(isDevEnv("DEV")).toBe(true);
-    expect(isDevEnv(" Dev ")).toBe(true);
-  });
-
-  it("is false for prod and anything else that is set", () => {
-    expect(isDevEnv("prod")).toBe(false);
-    expect(isDevEnv("staging")).toBe(false);
-    expect(isDevEnv("development")).toBe(false);
-  });
-
-  it("is false when ENV is unset or empty, even under next dev", () => {
-    expect(isDevEnv(undefined)).toBe(false);
-    expect(isDevEnv("")).toBe(false);
-  });
-});
+import { chromeWebStoreUrl, envPill } from "./app-env";
 
 describe("chromeWebStoreUrl", () => {
   it("accepts a Chrome Web Store listing", () => {
@@ -41,6 +22,7 @@ describe("envPill", () => {
     expect(envPill("dev")).toBe("dev");
     expect(envPill("DEV")).toBe("dev");
     expect(envPill(" Test ")).toBe("test");
+    expect(envPill("TEST")).toBe("test");
   });
 
   it("shows nothing in production, where ENV is unset", () => {
@@ -48,5 +30,6 @@ describe("envPill", () => {
     expect(envPill("")).toBeNull();
     expect(envPill("prod")).toBeNull();
     expect(envPill("staging")).toBeNull();
+    expect(envPill("development")).toBeNull();
   });
 });

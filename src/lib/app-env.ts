@@ -1,16 +1,11 @@
-// Which deployment this is, from ENV (the same variable the dev pill and the
-// extension build read). Dev-only features check isDevEnv(), which is strict:
-// only ENV=dev (any case) counts. Unset, empty or any other value is treated
-// as production, so a deploy that forgets ENV never exposes dev features.
+// Which deployment this is, from ENV. Only ENV=dev and ENV=test (any case)
+// are pre-release environments; unset, empty or any other value is treated
+// as production, so a deploy that forgets ENV never exposes their features.
 
-export function isDevEnv(env: string | undefined = process.env.ENV): boolean {
-  return (env ?? "").trim().toLowerCase() === "dev";
-}
-
-/** The environment pill in the nav: none in production (ENV unset). */
+/** A pre-release environment: gets the nav pill and the extension download. */
 export type EnvPill = "dev" | "test";
 
-/** ENV=dev or ENV=test (any case) get a pill; unset or anything else, none. */
+/** ENV=dev or ENV=test (any case); null in production (ENV unset). */
 export function envPill(env: string | undefined = process.env.ENV): EnvPill | null {
   const value = (env ?? "").trim().toLowerCase();
   return value === "dev" || value === "test" ? value : null;
