@@ -34,13 +34,28 @@ describe("replayAttempts", () => {
     expect(problem).toMatchObject({ reviewInterval: 14, nextReviewDate: day(24), totalAttempts: 3, bestConfidence: 5 });
   });
 
-  it("drops a removed duplicate's effect on the schedule and best confidence", () => {
-    // A 5 logged twice by mistake: the second would have doubled the interval.
-    const withDuplicate = replayAttempts([attempt("a", 0, 5), attempt("dup", 0.001, 5)]);
-    expect(withDuplicate.problem?.reviewInterval).toBe(28);
+  it("undoes a removed attempt's best confidence and renumbers the ones after it", () => {
+    const withMistake = replayAttempts([attempt("a", 0, 3), attempt("oops", 1, 5), attempt("c", 4, 3)]);
+    expect(withMistake.problem).toMatchObject({ bestConfidence: 5, totalAttempts: 3 });
+    expect(withMistake.attempts[2]).toMatchObject({ id: "c", attemptNumber: 3 });
 
-    const after = replayAttempts([attempt("a", 0, 5)]);
-    expect(after.problem).toMatchObject({ reviewInterval: 14, totalAttempts: 1, nextReviewDate: day(14) });
+    // "oops" removed: c is attempt 2 and starts from the interval a earned.
+    const after = replayAttempts([attempt("a", 0, 3), attempt("c", 4, 3)]);
+    expect(after.problem).toMatchObject({ bestConfidence: 3, totalAttempts: 2, reviewInterval: 3, nextReviewDate: day(7) });
+    expect(after.attempts[1]).toEqual({ id: "c", attemptNumber: 2, prevInterval: 3, prevStatus: "review" });
+  });
+
+  it("threads the stage through mastery and a lapse", () => {
+    const { attempts, problem } = replayAttempts([attempt("a", 0, 5), attempt("b", 14, 5), attempt("c", 42, 2)]);
+    expect(attempts[1]).toMatchObject({ prevInterval: 14, prevStatus: "review" });
+    expect(attempts[2]).toMatchObject({ prevInterval: 28, prevStatus: "mastered" });
+    expect(problem).toMatchObject({
+      status: "learning",
+      reviewInterval: 1,
+      nextReviewDate: day(43),
+      bestConfidence: 5,
+      lastAttemptDate: day(42),
+    });
   });
 
   it("breaks ties on date by creation time", () => {
@@ -50,5 +65,12 @@ describe("replayAttempts", () => {
       { id: "first", date: same, createdAt: day(0), confidence: 3 },
     ]);
     expect(attempts.map((a) => a.id)).toEqual(["first", "second"]);
+  });
+
+  it("falls back to id when a double submit ties on both timestamps", () => {
+    const same = day(0);
+    const twice = (id: string) => ({ id, date: same, createdAt: same, confidence: 3 });
+    expect(replayAttempts([twice("b"), twice("a")]).attempts.map((a) => a.id)).toEqual(["a", "b"]);
+    expect(replayAttempts([twice("a"), twice("b")]).attempts.map((a) => a.id)).toEqual(["a", "b"]);
   });
 });

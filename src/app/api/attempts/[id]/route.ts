@@ -1,6 +1,7 @@
 import { replayAttempts } from "@/lib/attempt-replay";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { lockUserProblem } from "@/lib/problem-lock";
 import { limitUser } from "@/lib/rate-limit";
 import { calculateNextReview } from "@/lib/spaced-repetition";
 import { updateAttemptSchema } from "@/lib/validations";
@@ -28,53 +29,66 @@ export async function PATCH(
   const data = parsed.data;
   const userId = session.user.id;
 
-  const attempt = await prisma.attempt.findFirst({ where: { id, userId } });
-  if (!attempt) {
+  const found = await prisma.attempt.findFirst({ where: { id, userId }, select: { problemId: true } });
+  if (!found) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const { problemId } = found;
 
-  const updated = await prisma.attempt.update({ where: { id }, data });
+  const result = await prisma.$transaction(async (tx) => {
+    // Same lock a remove takes: a remove rewrites this attempt's snapshot and
+    // the problem's schedule, so read both only once it has finished.
+    await lockUserProblem(tx, userId, problemId);
+    const attempt = await tx.attempt.findFirst({ where: { id, userId } });
+    if (!attempt) return null;
 
-  // Only the latest attempt drives the schedule, and only if we know the
-  // schedule it started from.
-  const latest = await prisma.attempt.findFirst({
-    where: { userId, problemId: attempt.problemId },
-    orderBy: { date: "desc" },
-    select: { id: true },
-  });
-  const canReschedule =
-    latest?.id === id && attempt.prevInterval !== null && attempt.prevStatus !== null;
+    const updated = await tx.attempt.update({ where: { id }, data });
 
-  if (!canReschedule) {
-    return NextResponse.json(updated);
-  }
+    // Only the latest attempt drives the schedule, and only if we know the
+    // schedule it started from.
+    const latest = await tx.attempt.findFirst({
+      where: { userId, problemId },
+      // Same order the replay on remove uses, so both agree which is latest.
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      select: { id: true },
+    });
+    const canReschedule =
+      latest?.id === id && attempt.prevInterval !== null && attempt.prevStatus !== null;
 
-  const review = calculateNextReview({
-    confidence: updated.confidence,
-    currentInterval: attempt.prevInterval!,
-    currentStatus: attempt.prevStatus!,
-    from: attempt.date,
-  });
-  const best = await prisma.attempt.aggregate({
-    where: { userId, problemId: attempt.problemId },
-    _max: { confidence: true },
-  });
+    if (!canReschedule) return updated;
 
-  await prisma.userProblem.update({
-    where: { userId_problemId: { userId, problemId: attempt.problemId } },
-    data: {
-      status: review.newStatus,
+    const review = calculateNextReview({
+      confidence: updated.confidence,
+      currentInterval: attempt.prevInterval!,
+      currentStatus: attempt.prevStatus!,
+      from: attempt.date,
+    });
+    const best = await tx.attempt.aggregate({
+      where: { userId, problemId },
+      _max: { confidence: true },
+    });
+
+    await tx.userProblem.update({
+      where: { userId_problemId: { userId, problemId } },
+      data: {
+        status: review.newStatus,
+        nextReviewDate: review.nextReviewDate,
+        reviewInterval: review.newInterval,
+        bestConfidence: best._max.confidence ?? updated.confidence,
+      },
+    });
+
+    return {
+      ...updated,
       nextReviewDate: review.nextReviewDate,
       reviewInterval: review.newInterval,
-      bestConfidence: best._max.confidence ?? updated.confidence,
-    },
+    };
   });
 
-  return NextResponse.json({
-    ...updated,
-    nextReviewDate: review.nextReviewDate,
-    reviewInterval: review.newInterval,
-  });
+  if (!result) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json(result);
 }
 
 // Remove an attempt logged by mistake (a double submit, say). The problem's
@@ -99,15 +113,36 @@ export async function DELETE(
     if (!attempt) return null;
     const { problemId } = attempt;
 
-    await tx.attempt.delete({ where: { id } });
+    await lockUserProblem(tx, userId, problemId);
+    // A remove that ran while we waited for the lock may have taken it already.
+    const { count } = await tx.attempt.deleteMany({ where: { id, userId } });
+    if (count === 0) return null;
 
     const remaining = await tx.attempt.findMany({
       where: { userId, problemId },
-      select: { id: true, date: true, createdAt: true, confidence: true },
+      select: {
+        id: true,
+        date: true,
+        createdAt: true,
+        confidence: true,
+        attemptNumber: true,
+        prevInterval: true,
+        prevStatus: true,
+      },
     });
     const replay = replayAttempts(remaining);
+    const before = new Map(remaining.map((a) => [a.id, a]));
 
+    // Usually only the attempts after the removed one change.
     for (const a of replay.attempts) {
+      const old = before.get(a.id);
+      if (
+        old?.attemptNumber === a.attemptNumber &&
+        old.prevInterval === a.prevInterval &&
+        old.prevStatus === a.prevStatus
+      ) {
+        continue;
+      }
       await tx.attempt.update({
         where: { id: a.id },
         data: { attemptNumber: a.attemptNumber, prevInterval: a.prevInterval, prevStatus: a.prevStatus },

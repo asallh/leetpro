@@ -563,7 +563,7 @@ function showFeedbackOverlay(problemData, solution) {
   });
 
   // --- logging: create on open, then autosave edits to the same attempt ---
-  const sync = { attemptId: null, creating: null, dirty: false, timer: null, closed: false };
+  const sync = { attemptId: null, creating: null, dirty: false, timer: null, closed: false, removed: false };
 
   // Always settles, so the overlay can never spin forever (issue #15). A
   // reloaded or updated extension orphans this content script: sendMessage
@@ -668,6 +668,14 @@ function showFeedbackOverlay(problemData, solution) {
     setStatus("Saving…");
     const response = await send({ type: "UPDATE_ATTEMPT", id: sync.attemptId, data: details() });
     if (!response?.success) {
+      if (response?.status === 404) {
+        // Usually removed in the web app. Stop: retrying can't work, and
+        // logging it again would undo a removal the user chose.
+        sync.removed = true;
+        submitBtn.textContent = "Close";
+        setStatus("This attempt is no longer in your LeetPro account (it may have been removed there), so changes here aren't saved.", "err");
+        return false;
+      }
       sync.dirty = true;
       setStatus(errorText(response, "Couldn't save your changes."), "err");
       return false;
@@ -679,6 +687,7 @@ function showFeedbackOverlay(problemData, solution) {
   // Runs whatever is pending: the first log, or the latest edits.
   async function flush() {
     clearTimeout(sync.timer);
+    if (sync.removed) return false;
     if (sync.creating) await sync.creating;
     if (!sync.attemptId) {
       sync.creating = create().finally(() => (sync.creating = null));
@@ -690,7 +699,7 @@ function showFeedbackOverlay(problemData, solution) {
 
   scheduleSave = (delay = 700) => {
     sync.dirty = true;
-    if (!sync.attemptId) return; // the first log picks these up
+    if (!sync.attemptId || sync.removed) return; // the first log picks these up
     clearTimeout(sync.timer);
     sync.timer = setTimeout(flush, delay);
   };
@@ -713,6 +722,10 @@ function showFeedbackOverlay(problemData, solution) {
       setStatus("Couldn't log the attempt. Press Retry.", "err");
     } finally {
       submitBtn.disabled = false;
+    }
+    if (sync.removed) {
+      close(); // nothing left to save, so the button just closes
+      return;
     }
     if (!ok) {
       submitBtn.textContent = "Retry";

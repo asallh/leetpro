@@ -180,15 +180,17 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
                   <p className="num text-sm text-muted-foreground sm:hidden">
                     <LocalDate date={a.date} pattern="MMM d, yyyy 'at' h:mm a" />
                   </p>
-                  <h3 className="flex flex-wrap items-baseline gap-x-3 text-[1.0625rem] font-semibold">
-                    <span>
-                      Attempt <span className="num">{a.attemptNumber}</span>
-                    </span>
-                    <span className={cn("text-base font-medium", resultTone[a.result])}>
-                      {RESULT_LABELS[a.result]}
-                    </span>
+                  <div className="flex items-baseline gap-x-3">
+                    <h3 className="flex flex-wrap items-baseline gap-x-3 text-[1.0625rem] font-semibold">
+                      <span>
+                        Attempt <span className="num">{a.attemptNumber}</span>
+                      </span>
+                      <span className={cn("text-base font-medium", resultTone[a.result])}>
+                        {RESULT_LABELS[a.result]}
+                      </span>
+                    </h3>
                     <RemoveAttempt attemptId={a.id} attemptNumber={a.attemptNumber} isOnly={attempts.length === 1} />
-                  </h3>
+                  </div>
 
                   <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
                     <Detail label="Confidence">

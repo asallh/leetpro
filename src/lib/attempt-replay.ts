@@ -1,6 +1,5 @@
+import type { ProblemStatus } from "@/generated/prisma/enums";
 import { calculateNextReview } from "./spaced-repetition";
-
-type ProblemStatus = "new_problem" | "learning" | "review" | "mastered";
 
 export interface ReplayInput {
   id: string;
@@ -37,7 +36,11 @@ export function replayAttempts(attempts: ReplayInput[]): {
   problem: ReplayedProblem | null;
 } {
   const ordered = [...attempts].sort(
-    (a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime(),
+    // A double submit can tie on both timestamps; id keeps the order stable.
+    (a, b) =>
+      a.date.getTime() - b.date.getTime() ||
+      a.createdAt.getTime() - b.createdAt.getTime() ||
+      a.id.localeCompare(b.id),
   );
 
   let interval = 0;

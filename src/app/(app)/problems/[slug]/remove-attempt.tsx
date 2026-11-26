@@ -36,7 +36,10 @@ export function RemoveAttempt({ attemptId, attemptNumber, isOnly }: RemoveAttemp
         setError(
           res.status === 404
             ? "That attempt is already gone. Refresh the page."
-            : "Couldn't remove the attempt. Nothing was changed.",
+            : res.status >= 500
+              ? // The removal may have landed before the error.
+                "Couldn't confirm the removal. Refresh the page to check."
+              : "Couldn't remove the attempt. Nothing was changed.",
         );
         return;
       }
@@ -45,7 +48,8 @@ export function RemoveAttempt({ attemptId, attemptNumber, isOnly }: RemoveAttemp
       if (remaining === 0) router.push("/problems");
       else router.refresh();
     } catch {
-      setError("Couldn't reach LeetPro. Nothing was changed.");
+      // A lost response doesn't mean the removal didn't happen.
+      setError("Couldn't reach LeetPro to confirm. Refresh the page to check.");
     } finally {
       setPending(false);
     }
@@ -55,6 +59,8 @@ export function RemoveAttempt({ attemptId, attemptNumber, isOnly }: RemoveAttemp
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Closing mid-request would look like a cancel while the delete still lands.
+        if (pending) return;
         setOpen(next);
         if (!next) setError(null);
       }}
@@ -87,7 +93,9 @@ export function RemoveAttempt({ attemptId, attemptNumber, isOnly }: RemoveAttemp
           </p>
         )}
         <DialogFooter>
-          <DialogClose render={<Button type="button" variant="outline" size="lg" />}>Cancel</DialogClose>
+          <DialogClose render={<Button type="button" variant="outline" size="lg" disabled={pending} />}>
+            Cancel
+          </DialogClose>
           <Button type="button" variant="destructive" size="lg" disabled={pending} onClick={remove}>
             {pending ? "Removing…" : "Remove attempt"}
           </Button>
