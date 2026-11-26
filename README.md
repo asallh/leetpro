@@ -215,7 +215,7 @@ This writes `dist/extension/` (load it unpacked to test) and `dist/leetpro-exten
 - replaces the `localhost` host permission with `https://your-domain.com/*`, so Chrome sends the session cookie and the requests skip CORS
 - refuses non-HTTPS origins, URLs with a path, leftover `localhost` references, and manifest entries that point at missing files
 
-`--env` works like the web app's `ENV` and can also come from it. Anything but `prod`, including leaving it out, builds a dev extension: it's named **LeetPro (Dev)**, shows a violet DEV pill in the popup, and stamps a DEV band on the toolbar icon. The checked-in `extension/` folder is a dev build too. Build with `--env prod` for the Web Store.
+`--env` can also come from `ENV`. Anything but `prod`, including leaving it out, builds a dev extension (unlike the web app, which treats an unset `ENV` as production): it's named **LeetPro (Dev)**, shows a violet DEV pill in the popup, and stamps a DEV band on the toolbar icon. The checked-in `extension/` folder is a dev build too. Build with `--env prod` for the Web Store.
 
 `--api-base` can also come from `LEETPRO_API_BASE`. `--version` is optional and overrides `manifest.json`. Bump it on every Web Store upload.
 

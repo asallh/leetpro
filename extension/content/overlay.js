@@ -277,6 +277,10 @@ const LP_STYLES = `
   .hint b { color: var(--text); font-weight: 600; }
   .hint .ok { color: var(--success); font-weight: 600; }
   .hint.err { color: var(--error); }
+  .hint .signin-link {
+    background: none; border: 0; padding: 0; font: inherit; font-weight: 600;
+    color: var(--text); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  }
   kbd {
     display: inline-block; min-width: 18px; padding: 1px 4px; margin-right: 2px; text-align: center;
     border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px;
@@ -553,12 +557,38 @@ function showFeedbackOverlay(problemData, solution) {
   card.addEventListener("keyup", (e) => e.stopPropagation());
   card.addEventListener("keypress", (e) => e.stopPropagation());
   submitBtn.addEventListener("click", () => submit());
+  // Content scripts can't open tabs; the service worker opens the sign-in page.
+  hint.addEventListener("click", (e) => {
+    if (e.target.closest(".signin-link")) chrome.runtime.sendMessage({ type: "OPEN_SIGN_IN" });
+  });
 
   // --- logging: create on open, then autosave edits to the same attempt ---
-  const sync = { attemptId: null, creating: null, dirty: false, timer: null, closed: false };
+  const sync = { attemptId: null, creating: null, dirty: false, timer: null, closed: false, removed: false };
 
+  // Always settles, so the overlay can never spin forever (issue #15). A
+  // reloaded or updated extension orphans this content script: sendMessage
+  // then throws or never answers, and only a page reload reconnects it.
+  const SEND_TIMEOUT_MS = 20000;
   function send(message) {
-    return new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
+    return new Promise((resolve) => {
+      const timer = setTimeout(
+        () => resolve({ success: false, error: "timeout" }),
+        SEND_TIMEOUT_MS
+      );
+      const done = (response) => {
+        clearTimeout(timer);
+        resolve(response);
+      };
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          const lastError = chrome.runtime.lastError;
+          if (lastError) done({ success: false, error: "disconnected" });
+          else done(response ?? { success: false, error: "disconnected" });
+        });
+      } catch {
+        done({ success: false, error: "disconnected" });
+      }
+    });
   }
 
   function setStatus(html, kind = "") {
@@ -568,7 +598,15 @@ function showFeedbackOverlay(problemData, solution) {
 
   function errorText(response, fallback) {
     const error = response?.error ?? "";
-    if (/401/.test(error)) return "Sign in to LeetPro, then press Retry.";
+    if (error === "disconnected") {
+      return "LeetPro was updated or reloaded. Reload this page to log your attempt.";
+    }
+    if (error === "timeout") {
+      return "LeetPro took too long to answer. Press Retry.";
+    }
+    if (/401/.test(error)) {
+      return `<button type="button" class="signin-link">Sign in to LeetPro</button>, then press Retry.`;
+    }
     const status = error.match(/API (\d{3})/)?.[1];
     return status ? `${fallback} (server ${status})` : fallback;
   }
@@ -630,6 +668,14 @@ function showFeedbackOverlay(problemData, solution) {
     setStatus("Saving…");
     const response = await send({ type: "UPDATE_ATTEMPT", id: sync.attemptId, data: details() });
     if (!response?.success) {
+      if (response?.status === 404) {
+        // Usually removed in the web app. Stop: retrying can't work, and
+        // logging it again would undo a removal the user chose.
+        sync.removed = true;
+        submitBtn.textContent = "Close";
+        setStatus("This attempt is no longer in your LeetPro account (it may have been removed there), so changes here aren't saved.", "err");
+        return false;
+      }
       sync.dirty = true;
       setStatus(errorText(response, "Couldn't save your changes."), "err");
       return false;
@@ -641,6 +687,7 @@ function showFeedbackOverlay(problemData, solution) {
   // Runs whatever is pending: the first log, or the latest edits.
   async function flush() {
     clearTimeout(sync.timer);
+    if (sync.removed) return false;
     if (sync.creating) await sync.creating;
     if (!sync.attemptId) {
       sync.creating = create().finally(() => (sync.creating = null));
@@ -652,7 +699,7 @@ function showFeedbackOverlay(problemData, solution) {
 
   scheduleSave = (delay = 700) => {
     sync.dirty = true;
-    if (!sync.attemptId) return; // the first log picks these up
+    if (!sync.attemptId || sync.removed) return; // the first log picks these up
     clearTimeout(sync.timer);
     sync.timer = setTimeout(flush, delay);
   };
@@ -668,8 +715,18 @@ function showFeedbackOverlay(problemData, solution) {
   submit = async () => {
     if (submitBtn.disabled) return;
     submitBtn.disabled = true;
-    const ok = await flush();
-    submitBtn.disabled = false;
+    let ok = false;
+    try {
+      ok = await flush();
+    } catch {
+      setStatus("Couldn't log the attempt. Press Retry.", "err");
+    } finally {
+      submitBtn.disabled = false;
+    }
+    if (sync.removed) {
+      close(); // nothing left to save, so the button just closes
+      return;
+    }
     if (!ok) {
       submitBtn.textContent = "Retry";
       return;
