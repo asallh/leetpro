@@ -7,6 +7,7 @@ import { estimateRecall, isFading } from "@/lib/recall";
 import { topicOf } from "@/lib/dashboard-insights";
 import { HELP_LABELS, RESULT_LABELS } from "@/lib/dashboard-metrics";
 import { cn } from "@/lib/utils";
+import { Prose } from "@/components/prose";
 import { ReviewAttemptDialog } from "../../review/review-attempt-dialog";
 import { MemoryTrace } from "./memory-trace";
 import { RemoveAttempt } from "./remove-attempt";
@@ -276,11 +277,11 @@ function ConfidencePips({ value }: { value: number }) {
   );
 }
 
-function Note({ label, children }: { label: string; children: React.ReactNode }) {
+function Note({ label, children }: { label: string; children: string }) {
   return (
     <div className="mt-4 max-w-[68ch]">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 leading-relaxed whitespace-pre-wrap">{children}</p>
+      <Prose className="mt-1">{children}</Prose>
     </div>
   );
 }
