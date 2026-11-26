@@ -9,6 +9,7 @@ import { HELP_LABELS, RESULT_LABELS } from "@/lib/dashboard-metrics";
 import { cn } from "@/lib/utils";
 import { ReviewAttemptDialog } from "../../review/review-attempt-dialog";
 import { MemoryTrace } from "./memory-trace";
+import { RemoveAttempt } from "./remove-attempt";
 import { ProblemVerdict } from "./verdict";
 import { LocalDate } from "@/components/local-date";
 import type { AttemptResult } from "@/generated/prisma/enums";
@@ -179,14 +180,17 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
                   <p className="num text-sm text-muted-foreground sm:hidden">
                     <LocalDate date={a.date} pattern="MMM d, yyyy 'at' h:mm a" />
                   </p>
-                  <h3 className="flex flex-wrap items-baseline gap-x-3 text-[1.0625rem] font-semibold">
-                    <span>
-                      Attempt <span className="num">{a.attemptNumber}</span>
-                    </span>
-                    <span className={cn("text-base font-medium", resultTone[a.result])}>
-                      {RESULT_LABELS[a.result]}
-                    </span>
-                  </h3>
+                  <div className="flex items-baseline gap-x-3">
+                    <h3 className="flex flex-wrap items-baseline gap-x-3 text-[1.0625rem] font-semibold">
+                      <span>
+                        Attempt <span className="num">{a.attemptNumber}</span>
+                      </span>
+                      <span className={cn("text-base font-medium", resultTone[a.result])}>
+                        {RESULT_LABELS[a.result]}
+                      </span>
+                    </h3>
+                    <RemoveAttempt attemptId={a.id} attemptNumber={a.attemptNumber} isOnly={attempts.length === 1} />
+                  </div>
 
                   <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
                     <Detail label="Confidence">

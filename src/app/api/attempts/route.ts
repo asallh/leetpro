@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { lockUserProblem } from "@/lib/problem-lock";
 import { limitUser } from "@/lib/rate-limit";
 import { calculateNextReview } from "@/lib/spaced-repetition";
 import { logAttemptSchema } from "@/lib/validations";
@@ -23,22 +24,26 @@ export async function POST(request: Request) {
   const data = parsed.data;
   const userId = session.user.id;
 
-  const existingStatus = await prisma.userProblem.findUnique({
-    where: { userId_problemId: { userId, problemId: data.problemId } },
-  });
+  const { attempt, review } = await prisma.$transaction(async (tx) => {
+    // Read the schedule under the same lock a remove takes, so the two can't
+    // interleave and write a schedule built from stale numbers.
+    await lockUserProblem(tx, userId, data.problemId);
 
-  const attemptCount = await prisma.attempt.count({
-    where: { userId, problemId: data.problemId },
-  });
+    const existingStatus = await tx.userProblem.findUnique({
+      where: { userId_problemId: { userId, problemId: data.problemId } },
+    });
 
-  const review = calculateNextReview({
-    confidence: data.confidence,
-    currentInterval: existingStatus?.reviewInterval ?? 0,
-    currentStatus: existingStatus?.status ?? "new_problem",
-  });
+    const attemptCount = await tx.attempt.count({
+      where: { userId, problemId: data.problemId },
+    });
 
-  const [attempt] = await prisma.$transaction([
-    prisma.attempt.create({
+    const review = calculateNextReview({
+      confidence: data.confidence,
+      currentInterval: existingStatus?.reviewInterval ?? 0,
+      currentStatus: existingStatus?.status ?? "new_problem",
+    });
+
+    const attempt = await tx.attempt.create({
       data: {
         userId,
         problemId: data.problemId,
@@ -55,8 +60,8 @@ export async function POST(request: Request) {
         patterns: data.patterns ?? [],
         attemptNumber: attemptCount + 1,
       },
-    }),
-    prisma.userProblem.upsert({
+    });
+    await tx.userProblem.upsert({
       where: { userId_problemId: { userId, problemId: data.problemId } },
       update: {
         totalAttempts: attemptCount + 1,
@@ -79,8 +84,10 @@ export async function POST(request: Request) {
         nextReviewDate: review.nextReviewDate,
         reviewInterval: review.newInterval,
       },
-    }),
-  ]);
+    });
+
+    return { attempt, review };
+  });
 
   return NextResponse.json({
     ...attempt,
