@@ -1,3 +1,4 @@
+import { replayAttempts } from "@/lib/attempt-replay";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { limitUser } from "@/lib/rate-limit";
@@ -74,4 +75,60 @@ export async function PATCH(
     nextReviewDate: review.nextReviewDate,
     reviewInterval: review.newInterval,
   });
+}
+
+// Remove an attempt logged by mistake (a double submit, say). The problem's
+// schedule, attempt numbers and stats are rebuilt from the attempts left, so
+// it reads as if the removed one was never logged.
+export async function DELETE(
+  _request: Request,
+  ctx: RouteContext<"/api/attempts/[id]">
+) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const limited = await limitUser(session.user.id, "apiWrite");
+  if (limited) return limited;
+
+  const { id } = await ctx.params;
+  const userId = session.user.id;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const attempt = await tx.attempt.findFirst({ where: { id, userId }, select: { problemId: true } });
+    if (!attempt) return null;
+    const { problemId } = attempt;
+
+    await tx.attempt.delete({ where: { id } });
+
+    const remaining = await tx.attempt.findMany({
+      where: { userId, problemId },
+      select: { id: true, date: true, createdAt: true, confidence: true },
+    });
+    const replay = replayAttempts(remaining);
+
+    for (const a of replay.attempts) {
+      await tx.attempt.update({
+        where: { id: a.id },
+        data: { attemptNumber: a.attemptNumber, prevInterval: a.prevInterval, prevStatus: a.prevStatus },
+      });
+    }
+
+    if (replay.problem) {
+      await tx.userProblem.update({
+        where: { userId_problemId: { userId, problemId } },
+        data: replay.problem,
+      });
+    } else {
+      // Nothing left: the problem goes back to untracked.
+      await tx.userProblem.deleteMany({ where: { userId, problemId } });
+    }
+
+    return { problemId, remaining: replay.attempts.length };
+  });
+
+  if (!result) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json(result);
 }

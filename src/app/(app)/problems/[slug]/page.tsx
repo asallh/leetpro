@@ -9,6 +9,7 @@ import { HELP_LABELS, RESULT_LABELS } from "@/lib/dashboard-metrics";
 import { cn } from "@/lib/utils";
 import { ReviewAttemptDialog } from "../../review/review-attempt-dialog";
 import { MemoryTrace } from "./memory-trace";
+import { RemoveAttempt } from "./remove-attempt";
 import { ProblemVerdict } from "./verdict";
 import { LocalDate } from "@/components/local-date";
 import type { AttemptResult } from "@/generated/prisma/enums";
@@ -186,6 +187,7 @@ async function ProblemDetail({ params }: { params: PageProps<"/problems/[slug]">
                     <span className={cn("text-base font-medium", resultTone[a.result])}>
                       {RESULT_LABELS[a.result]}
                     </span>
+                    <RemoveAttempt attemptId={a.id} attemptNumber={a.attemptNumber} isOnly={attempts.length === 1} />
                   </h3>
 
                   <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
